@@ -1,0 +1,23 @@
+export const LIMITS = {
+  CODE_MAX_SIZE_BYTES: 64 * 1024, // 64 KB
+  CODE_MAX_LINES: 2000,
+  SUBMISSION_RATE_PER_MINUTE: 10,
+  MATCH_DURATION_MS: 30 * 60 * 1000, // 30 minutes
+  MATCH_READY_CHECK_MS: 15 * 1000, // 15 seconds
+  MATCH_PREP_TIME_MS: 60 * 1000, // 1 minute to read problem
+  JUDGE_TIMEOUT_MS: 10 * 1000, // 10 seconds per test case
+  JUDGE_MAX_MEMORY_MB: 256,
+  JUDGE_MAX_OUTPUT_BYTES: 1024 * 1024, // 1 MB
+  DISPLAY_NAME_MIN: 3,
+  DISPLAY_NAME_MAX: 30,
+  BIO_MAX: 500,
+  DISCUSSION_TITLE_MAX: 200,
+  DISCUSSION_BODY_MAX: 10000,
+  MATCHMAKING_INITIAL_RANGE: 100,
+  MATCHMAKING_RANGE_EXPANSION_PER_SEC: 10,
+  MATCHMAKING_MAX_RANGE: 500,
+  MATCHMAKING_TIMEOUT_MS: 120 * 1000, // 2 minutes
+} as const;
+
+export const SUPPORTED_LANGUAGES = ['python', 'javascript', 'cpp', 'java'] as const;
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];

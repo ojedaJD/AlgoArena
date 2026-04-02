@@ -1,0 +1,410 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum SubmissionStatus {
+  PENDING
+  RUNNING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  COMPILATION_ERROR
+}
+
+enum MatchStatus {
+  WAITING
+  READY_CHECK
+  CODING
+  JUDGING
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchMode {
+  RANKED
+  CASUAL
+  FRIEND
+}
+
+enum RatingMode {
+  RANKED
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model User {
+  id        String     @id @default(uuid())
+  auth0Sub  String     @unique @map("auth0_sub")
+  email     String?
+  role      UserRole   @default(USER)
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  profile             UserProfile?
+  submissions         Submission[]
+  matchParticipations MatchParticipant[]
+  matchesWon          Match[]              @relation("MatchWinner")
+  ratings             Rating[]
+  ratingHistory       RatingHistory[]
+  friendships         Friendship[]         @relation("UserFriendships")
+  friendOf            Friendship[]         @relation("FriendOf")
+  xpLedger            XpLedger[]
+  streak              UserStreak?
+  userAchievements    UserAchievement[]
+  discussionThreads   DiscussionThread[]
+  discussionPosts     DiscussionPost[]
+  notifications       Notification[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id          String  @id @default(uuid())
+  userId      String  @unique @map("user_id")
+  displayName String  @map("display_name")
+  avatarUrl   String? @map("avatar_url")
+  bio         String?
+  timezone    String  @default("UTC")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Topic {
+  id            String  @id @default(uuid())
+  slug          String  @unique
+  title         String
+  orderIndex    Int     @map("order_index")
+  parentTopicId String? @map("parent_topic_id")
+
+  parent   Topic?  @relation("TopicHierarchy", fields: [parentTopicId], references: [id])
+  children Topic[] @relation("TopicHierarchy")
+  lessons  Lesson[]
+  problems ProblemTopic[]
+
+  @@map("topics")
+}
+
+model Lesson {
+  id         String @id @default(uuid())
+  topicId    String @map("topic_id")
+  title      String
+  contentMd  String @map("content_md") @db.Text
+  orderIndex Int    @map("order_index")
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@map("lessons")
+}
+
+model Problem {
+  id            String     @id @default(uuid())
+  slug          String     @unique
+  title         String
+  difficulty    Difficulty
+  statementMd   String     @map("statement_md") @db.Text
+  timeLimitMs   Int        @default(2000) @map("time_limit_ms")
+  memoryLimitMb Int        @default(256) @map("memory_limit_mb")
+  isPublished   Boolean    @default(false) @map("is_published")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  topics      ProblemTopic[]
+  tags        ProblemTag[]
+  testCases   TestCase[]
+  submissions Submission[]
+  matches     Match[]
+  threads     DiscussionThread[]
+
+  @@index([difficulty, isPublished])
+  @@map("problems")
+}
+
+model ProblemTopic {
+  problemId String @map("problem_id")
+  topicId   String @map("topic_id")
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([problemId, topicId])
+  @@map("problem_topics")
+}
+
+model ProblemTag {
+  id        String @id @default(uuid())
+  problemId String @map("problem_id")
+  tag       String
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([tag])
+  @@map("problem_tags")
+}
+
+model TestCase {
+  id             String  @id @default(uuid())
+  problemId      String  @map("problem_id")
+  isPublic       Boolean @default(false) @map("is_public")
+  input          String  @db.Text
+  expectedOutput String  @map("expected_output") @db.Text
+  orderIndex     Int     @map("order_index")
+
+  problem Problem                @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  results SubmissionTestResult[]
+
+  @@map("test_cases")
+}
+
+model Submission {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  problemId   String           @map("problem_id")
+  matchId     String?          @map("match_id")
+  language    String
+  code        String           @db.Text
+  status      SubmissionStatus @default(PENDING)
+  runtimeMs   Int?             @map("runtime_ms")
+  memoryKb    Int?             @map("memory_kb")
+  passedCases Int              @default(0) @map("passed_cases")
+  totalCases  Int              @default(0) @map("total_cases")
+  errorOutput String?          @map("error_output") @db.Text
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  user             User                   @relation(fields: [userId], references: [id])
+  problem          Problem                @relation(fields: [problemId], references: [id])
+  testResults      SubmissionTestResult[]
+  matchParticipant MatchParticipant[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([problemId])
+  @@map("submissions")
+}
+
+model SubmissionTestResult {
+  id           String  @id @default(uuid())
+  submissionId String  @map("submission_id")
+  testCaseId   String  @map("test_case_id")
+  passed       Boolean
+  actualOutput String? @map("actual_output") @db.Text
+  runtimeMs    Int     @map("runtime_ms")
+  memoryKb     Int     @map("memory_kb")
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCase   TestCase   @relation(fields: [testCaseId], references: [id])
+
+  @@map("submission_test_results")
+}
+
+model Match {
+  id          String      @id @default(uuid())
+  mode        MatchMode
+  status      MatchStatus @default(WAITING)
+  problemId   String?     @map("problem_id")
+  winnerId    String?     @map("winner_id")
+  startedAt   DateTime?   @map("started_at")
+  endedAt     DateTime?   @map("ended_at")
+  ratingDelta Json?       @map("rating_delta")
+
+  problem      Problem?           @relation(fields: [problemId], references: [id])
+  winner       User?              @relation("MatchWinner", fields: [winnerId], references: [id])
+  participants MatchParticipant[]
+
+  @@map("matches")
+}
+
+model MatchParticipant {
+  id            String    @id @default(uuid())
+  matchId       String    @map("match_id")
+  userId        String    @map("user_id")
+  ratingAtMatch Float?    @map("rating_at_match")
+  submissionId  String?   @map("submission_id")
+  score         Int       @default(0)
+  readyAt       DateTime? @map("ready_at")
+
+  match      Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id])
+  submission Submission? @relation(fields: [submissionId], references: [id])
+
+  @@unique([matchId, userId])
+  @@map("match_participants")
+}
+
+model Rating {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  mode        RatingMode @default(RANKED)
+  ratingValue Float      @default(1500) @map("rating_value")
+  rd          Float      @default(350)
+  volatility  Float      @default(0.06)
+  gamesPlayed Int        @default(0) @map("games_played")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, mode])
+  @@map("ratings")
+}
+
+model RatingHistory {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  matchId      String   @map("match_id")
+  ratingBefore Float    @map("rating_before")
+  ratingAfter  Float    @map("rating_after")
+  rdBefore     Float    @map("rd_before")
+  rdAfter      Float    @map("rd_after")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("rating_history")
+}
+
+model Friendship {
+  id           String           @id @default(uuid())
+  userId       String           @map("user_id")
+  friendUserId String           @map("friend_user_id")
+  status       FriendshipStatus @default(PENDING)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  user   User @relation("UserFriendships", fields: [userId], references: [id])
+  friend User @relation("FriendOf", fields: [friendUserId], references: [id])
+
+  @@unique([userId, friendUserId])
+  @@map("friendships")
+}
+
+model XpLedger {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  delta     Int
+  reason    String
+  refType   String?  @map("ref_type")
+  refId     String?  @map("ref_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("xp_ledger")
+}
+
+model UserStreak {
+  id               String    @id @default(uuid())
+  userId           String    @unique @map("user_id")
+  currentStreak    Int       @default(0) @map("current_streak")
+  longestStreak    Int       @default(0) @map("longest_streak")
+  lastActivityDate DateTime? @map("last_activity_date") @db.Date
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_streaks")
+}
+
+model Achievement {
+  id          String  @id @default(uuid())
+  slug        String  @unique
+  title       String
+  description String
+  iconUrl     String? @map("icon_url")
+  criteria    Json
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  achievementId String   @map("achievement_id")
+  unlockedAt    DateTime @default(now()) @map("unlocked_at")
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model DiscussionThread {
+  id        String   @id @default(uuid())
+  problemId String   @map("problem_id")
+  userId    String   @map("user_id")
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  problem Problem          @relation(fields: [problemId], references: [id])
+  user    User             @relation(fields: [userId], references: [id])
+  posts   DiscussionPost[]
+
+  @@index([problemId])
+  @@map("discussion_threads")
+}
+
+model DiscussionPost {
+  id           String   @id @default(uuid())
+  threadId     String   @map("thread_id")
+  userId       String   @map("user_id")
+  body         String   @db.Text
+  parentPostId String?  @map("parent_post_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  thread  DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id])
+  parent  DiscussionPost?  @relation("PostReplies", fields: [parentPostId], references: [id])
+  replies DiscussionPost[] @relation("PostReplies")
+
+  @@map("discussion_posts")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false) @map("is_read")
+  refType   String?  @map("ref_type")
+  refId     String?  @map("ref_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}

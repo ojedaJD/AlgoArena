@@ -1,0 +1,161 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      tag:
+        description: 'Docker image tag (defaults to short SHA)'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+
+env:
+  # Replace these with your actual registry details before use.
+  # Example values for Docker Hub: docker.io/yourorg
+  # Example values for GHCR:      ghcr.io/yourorg
+  REGISTRY: ${{ secrets.DOCKER_REGISTRY_URL || 'ghcr.io/your-org' }}
+  API_IMAGE: ${{ secrets.DOCKER_REGISTRY_URL || 'ghcr.io/your-org' }}/algoarena-api
+  WEB_IMAGE: ${{ secrets.DOCKER_REGISTRY_URL || 'ghcr.io/your-org' }}/algoarena-web
+
+jobs:
+  # ─── Build & Push API Image ───────────────────────────────────────────────
+  build-api:
+    name: Build API Docker Image
+    runs-on: ubuntu-latest
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "TAG=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Extract Docker metadata (API)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.tag.outputs.TAG }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+  # ─── Build & Push Web Image ───────────────────────────────────────────────
+  build-web:
+    name: Build Web Docker Image
+    runs-on: ubuntu-latest
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "TAG=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Extract Docker metadata (Web)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.tag.outputs.TAG }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  # ─── Deploy ───────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    needs: [build-api, build-web]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Placeholder: SSH deploy, kubectl apply, docker compose pull+up, etc. ──
+      # Replace this step with your actual deployment mechanism.
+      - name: Deploy images (placeholder)
+        run: |
+          echo "Deploying API image : ${{ env.API_IMAGE }}:${{ needs.build-api.outputs.image-tag }}"
+          echo "Deploying Web image : ${{ env.WEB_IMAGE }}:${{ needs.build-web.outputs.image-tag }}"
+          echo "Target environment  : ${{ github.event.inputs.environment || 'staging' }}"
+          echo ""
+          echo "TODO: Replace this step with one of:"
+          echo "  - SSH + docker compose pull && docker compose up -d"
+          echo "  - kubectl set image deployment/api api=IMAGE:TAG"
+          echo "  - Render / Railway / Fly.io CLI deploy command"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          echo "Deploy job finished with status: ${{ job.status }}"
+          # TODO: wire in Slack / Discord / PagerDuty notification here

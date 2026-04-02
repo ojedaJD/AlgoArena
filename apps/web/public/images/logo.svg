@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="AlgoArena logo">
+  <!-- Rounded square background -->
+  <rect width="64" height="64" rx="16" fill="#2563EB"/>
+
+  <!-- Left angle bracket < -->
+  <path
+    d="M18 24L10 32L18 40"
+    stroke="white"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Right angle bracket > -->
+  <path
+    d="M46 24L54 32L46 40"
+    stroke="white"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Lightning bolt inside the brackets -->
+  <path
+    d="M35 18L27 33H33L29 46L37 31H31L35 18Z"
+    fill="#FCD34D"
+    stroke="#F59E0B"
+    stroke-width="0.5"
+    stroke-linejoin="round"
+  />
+</svg>
