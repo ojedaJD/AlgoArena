@@ -1,19 +1,37 @@
 .PHONY: setup dev build install docker-up docker-down db-migrate db-seed db-setup db-studio judge-build-images typecheck lint
 
 # ── First-time setup (one command to get everything running) ──────────
+# Works in both Docker (local) and Codespaces (no Docker) environments.
 setup:
-	@echo "==> Starting PostgreSQL and Redis..."
-	docker compose up -d postgres redis
-	@echo "==> Waiting for PostgreSQL to be ready..."
-	@until docker compose exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
+	@if command -v docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then \
+		echo "==> Starting PostgreSQL and Redis via Docker..."; \
+		docker compose up -d postgres redis; \
+		echo "==> Waiting for PostgreSQL to be ready..."; \
+		until docker compose exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done; \
+	else \
+		echo "==> Docker not available — using local services (Codespaces)"; \
+		echo "==> Ensuring PostgreSQL is running..."; \
+		pg_isready -U postgres > /dev/null 2>&1 || (sudo service postgresql start && sleep 2); \
+		echo "==> Creating database if it doesn't exist..."; \
+		psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='dsa_platform'" | grep -q 1 || \
+			psql -U postgres -c "CREATE DATABASE dsa_platform;"; \
+		echo "==> Ensuring Redis is running..."; \
+		redis-cli ping > /dev/null 2>&1 || (redis-server --daemonize yes && sleep 1); \
+	fi
 	@if [ ! -f .env ]; then cp .env.example .env && echo "==> Created .env from .env.example"; fi
 	@if [ ! -f apps/api/.env ]; then cp apps/api/.env.example apps/api/.env && echo "==> Created apps/api/.env"; fi
+	@# Fix DB port: Docker uses 5433, Codespaces uses 5432
+	@if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then \
+		echo "==> Adjusting DATABASE_URL for local PostgreSQL (port 5432)..."; \
+		sed -i 's|localhost:5433|localhost:5432|g' .env 2>/dev/null || true; \
+		sed -i 's|localhost:5433|localhost:5432|g' apps/api/.env 2>/dev/null || true; \
+	fi
 	@echo "==> Installing dependencies..."
 	npm install
-	@echo "==> Running database migrations..."
-	cd apps/api && npx prisma migrate deploy
 	@echo "==> Generating Prisma client..."
 	cd apps/api && npx prisma generate
+	@echo "==> Running database migrations..."
+	cd apps/api && npx prisma migrate deploy
 	@echo "==> Seeding database (topics, problems, curriculum)..."
 	cd apps/api && npx prisma db seed
 	@echo "==> Importing curriculum content from Markdown..."
