@@ -1,0 +1,26 @@
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy workspace manifests and install deps (including devDeps for tsx)
+COPY package.json ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared/package.json ./packages/shared/
+
+RUN npm install --workspace=apps/api --workspace=packages/shared
+
+# Copy source needed for seed + import
+COPY packages/shared ./packages/shared
+COPY apps/api/prisma ./apps/api/prisma
+COPY apps/api/src ./apps/api/src
+
+# Generate Prisma client
+RUN cd apps/api && npx prisma generate
+
+WORKDIR /app/apps/api
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]

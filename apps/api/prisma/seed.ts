@@ -422,6 +422,18 @@ async function main() {
 
   console.log(`Seeded ${sdLessonCount} Systems Design lessons, ${sdItemCount} new curriculum items.`);
 
+  // ─── LeetCode Problems ────────────────────────────────────────────────────
+  // Only runs when the problems table is empty (first-time setup).
+
+  const existingProblems = await prisma.problem.count();
+  if (existingProblems < 20) {
+    console.log('Problems table is empty — importing LeetCode dataset...');
+    const { importLeetcode } = await import('./import-leetcode.js');
+    await importLeetcode(prisma);
+  } else {
+    console.log(`Skipping LeetCode import (${existingProblems} problems already in DB).`);
+  }
+
   console.log('Seeding complete.');
 }
 
