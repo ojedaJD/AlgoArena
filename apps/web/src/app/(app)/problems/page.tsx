@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { BookOpen } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { problemsApi } from '@/lib/api-client';
 import { ProblemCard } from '@/components/problems/problem-card';
 import { ProblemFilters, type FilterState } from '@/components/problems/problem-filters';
@@ -25,63 +24,13 @@ function SkeletonCard() {
   );
 }
 
-function Pagination({
-  page,
-  totalPages,
-  onPage,
-}: {
-  page: number;
-  totalPages: number;
-  onPage: (p: number) => void;
-}) {
-  if (totalPages <= 1) return null;
-
-  const pages = Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-    if (totalPages <= 7) return i + 1;
-    if (page <= 4) return i + 1;
-    if (page >= totalPages - 3) return totalPages - 6 + i;
-    return page - 3 + i;
-  });
-
-  return (
-    <div className="flex items-center justify-center gap-1 pt-4">
-      <button
-        onClick={() => onPage(page - 1)}
-        disabled={page === 1}
-        className="px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        Prev
-      </button>
-      {pages.map((p) => (
-        <button
-          key={p}
-          onClick={() => onPage(p)}
-          className={cn(
-            'w-8 h-8 text-xs rounded-lg transition-colors',
-            p === page
-              ? 'bg-blue-600 text-white font-semibold'
-              : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
-          )}
-        >
-          {p}
-        </button>
-      ))}
-      <button
-        onClick={() => onPage(page + 1)}
-        disabled={page === totalPages}
-        className="px-3 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        Next
-      </button>
-    </div>
-  );
-}
-
 export default function ProblemsPage() {
   const [problems, setProblems] = useState<ProblemSummary[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]); // stack for prev pages
+  const [pageIndex, setPageIndex] = useState(0);
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     difficulty: '',
@@ -89,37 +38,71 @@ export default function ProblemsPage() {
     tag: '',
   });
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-
-  const fetchProblems = useCallback(async () => {
+  const fetchProblems = useCallback(async (cursor?: string) => {
     setIsLoading(true);
     try {
       const data = await problemsApi.list({
-        page,
+        cursor,
         limit: PAGE_SIZE,
         difficulty: filters.difficulty || undefined,
         topic: filters.topic || undefined,
         search: filters.search || undefined,
       });
 
-      setProblems((data.items ?? []) as ProblemSummary[]);
-      setTotal(data.total ?? 0);
+      // Normalize API shape → ProblemSummary (flatten nested tag/topic objects)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const normalized = (data.data ?? []).map((p: any) => ({
+        ...p,
+        tags: Array.isArray(p.tags)
+          ? p.tags.map((t: unknown) => (typeof t === 'object' && t !== null && 'tag' in t ? (t as {tag:string}).tag : t))
+          : [],
+        topicIds: Array.isArray(p.topics)
+          ? p.topics.map((t: unknown) => {
+              if (typeof t === 'object' && t !== null && 'topic' in t) {
+                const inner = (t as {topic:{id:string}}).topic;
+                return inner?.id ?? '';
+              }
+              return t;
+            })
+          : [],
+      }));
+      setProblems(normalized as unknown as ProblemSummary[]);
+      setNextCursor(data.nextCursor);
+      setHasMore(data.hasMore);
     } catch {
       setProblems([]);
-      setTotal(0);
+      setNextCursor(null);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
-  }, [page, filters]);
+  }, [filters]);
 
   useEffect(() => {
-    fetchProblems();
-  }, [fetchProblems]);
+    fetchProblems(cursors[pageIndex]);
+  }, [fetchProblems, pageIndex, cursors]);
 
-  // Reset to page 1 when filters change
   const handleFiltersChange = (newFilters: FilterState) => {
     setFilters(newFilters);
-    setPage(1);
+    setCursors([undefined]);
+    setPageIndex(0);
+  };
+
+  const handleNext = () => {
+    if (nextCursor && hasMore) {
+      setCursors((prev) => {
+        const next = [...prev];
+        if (!next[pageIndex + 1]) next[pageIndex + 1] = nextCursor;
+        return next;
+      });
+      setPageIndex((i) => i + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (pageIndex > 0) {
+      setPageIndex((i) => i - 1);
+    }
   };
 
   return (
@@ -132,7 +115,7 @@ export default function ProblemsPage() {
             <h1 className="text-2xl font-bold text-slate-100">Problems</h1>
             {!isLoading && (
               <p className="text-sm text-slate-400 mt-0.5">
-                {total} problem{total !== 1 ? 's' : ''} available
+                Page {pageIndex + 1} &middot; {problems.length} shown
               </p>
             )}
           </div>
@@ -152,7 +135,7 @@ export default function ProblemsPage() {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    index={(page - 1) * PAGE_SIZE + idx}
+                    index={pageIndex * PAGE_SIZE + idx}
                   />
                 ))
               : (
@@ -165,8 +148,24 @@ export default function ProblemsPage() {
         </div>
 
         {/* Pagination */}
-        {!isLoading && (
-          <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+        {!isLoading && (problems.length > 0 || pageIndex > 0) && (
+          <div className="flex items-center justify-center gap-3 pt-4">
+            <button
+              onClick={handlePrev}
+              disabled={pageIndex === 0}
+              className="px-4 py-2 text-xs rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-slate-500">Page {pageIndex + 1}</span>
+            <button
+              onClick={handleNext}
+              disabled={!hasMore}
+              className="px-4 py-2 text-xs rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
         )}
       </div>
     </div>

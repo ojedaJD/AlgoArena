@@ -58,9 +58,9 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 }
 
 export const problemsApi = {
-  list(params: { page?: number; limit?: number; difficulty?: string; topic?: string; tag?: string; search?: string } = {}) {
+  list(params: { cursor?: string; limit?: number; difficulty?: string; topic?: string; tag?: string; search?: string } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number }>(`/v1/problems${query}`);
+    return api.get<{ data: unknown[]; nextCursor: string | null; hasMore: boolean }>(`/v1/problems${query}`);
   },
   getBySlug(slug: string) {
     return api.get<unknown>(`/v1/problems/${slug}`);
