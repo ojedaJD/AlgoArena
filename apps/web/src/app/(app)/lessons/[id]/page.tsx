@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { ChevronLeft, BookOpen, CheckCircle2, PlayCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { curriculumApi, type LessonDetail, type LessonProgressEntry } from '@/lib/api-client';
@@ -18,7 +17,6 @@ export default function LessonReaderPage() {
   const [progress, setProgress] = useState<LessonProgressEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [mermaid, setMermaid] = useState<any>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -35,20 +33,6 @@ export default function LessonReaderPage() {
       })
       .finally(() => setIsLoading(false));
   }, [lessonId]);
-
-  useEffect(() => {
-    // Lazy-load mermaid only on the client.
-    import('mermaid')
-      .then((m) => {
-        const mer = m.default ?? m;
-        mer.initialize({ startOnLoad: false, securityLevel: 'strict' });
-        setMermaid(mer);
-      })
-      .catch(() => {
-        // If mermaid fails to load, we just show code blocks.
-        setMermaid(null);
-      });
-  }, []);
 
   const updateProgress = useCallback(
     async (status: 'IN_PROGRESS' | 'COMPLETED') => {
@@ -119,38 +103,6 @@ export default function LessonReaderPage() {
               </div>
             </div>
 
-            {/* Attribution */}
-            {(lesson.attributionText || lesson.sourceAuthor || lesson.sourceUrl || lesson.sourceLicense) && (
-              <div className="mb-6 rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3">
-                <div className="text-xs text-slate-400">
-                  <div className="font-medium text-slate-300 mb-1">Attribution</div>
-                  {lesson.attributionText && <div className="mb-1">{lesson.attributionText}</div>}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {lesson.sourceAuthor && (
-                      <div>
-                        <span className="text-slate-500">Author:</span> {lesson.sourceAuthor}
-                      </div>
-                    )}
-                    {lesson.sourceLicense && (
-                      <div>
-                        <span className="text-slate-500">License:</span> {lesson.sourceLicense}
-                      </div>
-                    )}
-                    {lesson.sourceUrl && (
-                      <a
-                        className="text-blue-400 hover:text-blue-300 underline underline-offset-2"
-                        href={lesson.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Source
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Action buttons */}
             <div className="flex items-center gap-3 mb-8">
               {status === 'NOT_STARTED' && (
@@ -189,44 +141,7 @@ export default function LessonReaderPage() {
 
             {/* Markdown content */}
             <article className="prose prose-invert prose-slate max-w-none prose-headings:text-slate-100 prose-p:text-slate-300 prose-a:text-blue-400 prose-strong:text-slate-200 prose-code:text-emerald-400 prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-800 prose-li:text-slate-300 prose-hr:border-slate-800">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code: (props: any) => {
-                    const { inline, className, children, ...rest } = props ?? {};
-                    const codeText = String(children ?? '');
-                    const lang = (className ?? '').match(/language-(\w+)/)?.[1];
-
-                    if (!inline && lang === 'mermaid' && mermaid) {
-                      // Render Mermaid diagrams as SVG.
-                      return (
-                        <MermaidDiagram mermaid={mermaid} code={codeText} />
-                      );
-                    }
-
-                    return inline ? (
-                      <code
-                        className="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-mono text-blue-300"
-                        {...rest}
-                      >
-                        {children}
-                      </code>
-                    ) : (
-                      <code
-                        className="block bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-300 overflow-x-auto whitespace-pre"
-                        {...rest}
-                      >
-                        {children}
-                      </code>
-                    );
-                  },
-                  pre: ({ children }) => (
-                    <pre className="bg-transparent p-0 m-0">{children}</pre>
-                  ),
-                }}
-              >
-                {lesson.contentMd || '_No content yet._'}
-              </ReactMarkdown>
+              <ReactMarkdown>{lesson.contentMd || '_No content yet._'}</ReactMarkdown>
             </article>
 
             {/* Bottom action */}
@@ -247,52 +162,5 @@ export default function LessonReaderPage() {
         )}
       </div>
     </div>
-  );
-}
-
-function MermaidDiagram({ mermaid, code }: { mermaid: any; code: string }) {
-  const [svg, setSvg] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const id = `mmd-${Math.random().toString(36).slice(2)}`;
-
-    Promise.resolve()
-      .then(async () => {
-        const { svg } = await mermaid.render(id, code);
-        if (!cancelled) setSvg(svg);
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to render diagram');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mermaid, code]);
-
-  if (error) {
-    return (
-      <div className="border border-slate-800 rounded-lg p-3 bg-slate-900/40 text-xs text-slate-400">
-        Mermaid render failed: {error}
-      </div>
-    );
-  }
-
-  if (!svg) {
-    return (
-      <div className="border border-slate-800 rounded-lg p-3 bg-slate-900/40 text-xs text-slate-400 flex items-center gap-2">
-        <Loader2 className="animate-spin" size={14} />
-        Rendering diagram…
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="border border-slate-800 rounded-lg p-3 bg-white overflow-x-auto"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
   );
 }
