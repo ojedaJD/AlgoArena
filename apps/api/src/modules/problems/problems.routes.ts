@@ -11,9 +11,9 @@ import {
 import { ValidationError } from '../../lib/errors.js';
 
 export async function problemRoutes(app: FastifyInstance) {
-  // ─── GET /v1/problems ──────────────────────────────────────────────────────
+  // ─── GET /problems ──────────────────────────────────────────────────────
   // Public. Lists published problems with optional filters.
-  app.get('/v1/problems', { preHandler: [] }, async (request, reply) => {
+  app.get('/problems', { preHandler: [] }, async (request, reply) => {
     const parseResult = problemFiltersSchema.safeParse(request.query);
     if (!parseResult.success) {
       throw new ValidationError(parseResult.error.errors[0]?.message ?? 'Invalid query params');
@@ -24,10 +24,10 @@ export async function problemRoutes(app: FastifyInstance) {
     return reply.code(200).send(result);
   });
 
-  // ─── GET /v1/problems/:slug ────────────────────────────────────────────────
+  // ─── GET /problems/:slug ────────────────────────────────────────────────
   // Public. Returns full problem with public test cases.
   app.get<{ Params: { slug: string } }>(
-    '/v1/problems/:slug',
+    '/problems/:slug',
     { preHandler: [] },
     async (request, reply) => {
       const userId: string | undefined = (request as any).user?.id;
@@ -36,10 +36,10 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── GET /v1/problems/:slug/tests/public ──────────────────────────────────
+  // ─── GET /problems/:slug/tests/public ──────────────────────────────────
   // Public. Returns only public test cases for a problem (by slug).
   app.get<{ Params: { slug: string } }>(
-    '/v1/problems/:slug/tests/public',
+    '/problems/:slug/tests/public',
     { preHandler: [] },
     async (request, reply) => {
       // Resolve slug → id
@@ -49,9 +49,9 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── POST /v1/problems ────────────────────────────────────────────────────
+  // ─── POST /problems ────────────────────────────────────────────────────
   // Admin only. Create a new problem.
-  app.post('/v1/problems', { preHandler: [requireAuth, requireAdmin] }, async (request, reply) => {
+  app.post('/problems', { preHandler: [requireAuth, requireAdmin] }, async (request, reply) => {
     const parseResult = createProblemSchema.safeParse(request.body);
     if (!parseResult.success) {
       throw new ValidationError(parseResult.error.errors[0]?.message ?? 'Invalid request body');
@@ -61,10 +61,10 @@ export async function problemRoutes(app: FastifyInstance) {
     return reply.code(201).send(problem);
   });
 
-  // ─── PATCH /v1/problems/:id ───────────────────────────────────────────────
+  // ─── PATCH /problems/:id ───────────────────────────────────────────────
   // Admin only. Update scalar fields, tags, or topic links.
   app.patch<{ Params: { id: string } }>(
-    '/v1/problems/:id',
+    '/problems/:id',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const parseResult = updateProblemSchema.safeParse(request.body);
@@ -77,10 +77,10 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── POST /v1/problems/:id/publish ───────────────────────────────────────
+  // ─── POST /problems/:id/publish ───────────────────────────────────────
   // Admin only. Set isPublished = true.
   app.post<{ Params: { id: string } }>(
-    '/v1/problems/:id/publish',
+    '/problems/:id/publish',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const problem = await ProblemService.publish(request.params.id);
@@ -88,10 +88,10 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── DELETE /v1/problems/:id ──────────────────────────────────────────────
+  // ─── DELETE /problems/:id ──────────────────────────────────────────────
   // Admin only. Hard delete.
   app.delete<{ Params: { id: string } }>(
-    '/v1/problems/:id',
+    '/problems/:id',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       await ProblemService.delete(request.params.id);
@@ -99,10 +99,10 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── POST /v1/problems/:id/tests ─────────────────────────────────────────
+  // ─── POST /problems/:id/tests ─────────────────────────────────────────
   // Admin only. Add a test case to a problem.
   app.post<{ Params: { id: string } }>(
-    '/v1/problems/:id/tests',
+    '/problems/:id/tests',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const parseResult = createTestCaseSchema.safeParse(request.body);
@@ -115,10 +115,10 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── PATCH /v1/problems/tests/:testId ────────────────────────────────────
+  // ─── PATCH /problems/tests/:testId ────────────────────────────────────
   // Admin only. Update a test case.
   app.patch<{ Params: { testId: string } }>(
-    '/v1/problems/tests/:testId',
+    '/problems/tests/:testId',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const parseResult = updateTestCaseSchema.safeParse(request.body);
@@ -131,10 +131,10 @@ export async function problemRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── DELETE /v1/problems/tests/:testId ───────────────────────────────────
+  // ─── DELETE /problems/tests/:testId ───────────────────────────────────
   // Admin only. Delete a test case.
   app.delete<{ Params: { testId: string } }>(
-    '/v1/problems/tests/:testId',
+    '/problems/tests/:testId',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       await ProblemService.deleteTestCase(request.params.testId);

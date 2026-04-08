@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ListTree,
   BookOpen,
+  Map,
   Swords,
   Trophy,
   Users,
@@ -32,6 +33,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Main' },
   { href: '/problems', label: 'Problems', icon: ListTree, section: 'Main' },
+  { href: '/curriculum', label: 'Curriculum', icon: Map, section: 'Main' },
   { href: '/topics', label: 'Topics', icon: BookOpen, section: 'Main' },
   { href: '/compete', label: 'Compete', icon: Swords, section: 'Play', badge: 'Live' },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy, section: 'Play' },

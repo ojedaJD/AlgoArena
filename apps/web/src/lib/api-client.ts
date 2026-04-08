@@ -86,24 +86,24 @@ export const matchApi = {
   },
   getHistory(params: { page?: number; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number }>(`/v1/matches/history${query}`);
+    return api.get<{ data: unknown[]; pagination: unknown }>(`/v1/users/me/matches${query}`);
   },
   challenge(friendUserId: string) {
-    return api.post<unknown>('/v1/matches/challenge', { friendUserId });
+    return api.post<unknown>('/v1/matches/challenges', { friendUserId });
   },
   acceptChallenge(matchId: string) {
-    return api.post<unknown>(`/v1/matches/challenge/${matchId}/accept`);
+    return api.post<unknown>(`/v1/matches/${matchId}/accept`);
   },
 };
 
 export const leaderboardApi = {
   global(params: { type?: string; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ entries: unknown[] }>(`/v1/leaderboard${query}`);
+    return api.get<{ entries: unknown[] }>(`/v1/leaderboards/global${query}`);
   },
   friends(params: { type?: string; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ entries: unknown[] }>(`/v1/leaderboard/friends${query}`);
+    return api.get<{ entries: unknown[] }>(`/v1/leaderboards/friends${query}`);
   },
 };
 
@@ -151,35 +151,36 @@ export const socialApi = {
 
 export const submissionsApi = {
   submit(body: { problemSlug: string; code: string; language: string; matchId?: string }) {
-    return api.post<unknown>('/v1/submissions', body);
+    return api.post<unknown>(`/v1/problems/${body.problemSlug}/submissions`, { code: body.code, language: body.language });
   },
-  run(body: { code: string; language: string; input: string }) {
-    return api.post<unknown>('/v1/submissions/run', body);
+  run(body: { code: string; language: string; input: string; problemSlug?: string }) {
+    const slug = body.problemSlug || 'sandbox';
+    return api.post<unknown>(`/v1/problems/${slug}/run`, { code: body.code, language: body.language, input: body.input });
   },
   getById(id: string) {
     return api.get<unknown>(`/v1/submissions/${id}`);
   },
   list(params: { page?: number; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number }>(`/v1/submissions${query}`);
+    return api.get<{ data: unknown[]; nextCursor: string | null; hasMore: boolean }>(`/v1/users/me/submissions${query}`);
   },
 };
 
 export const gamificationApi = {
   getProgress() {
-    return api.get<unknown>('/v1/gamification/progress');
+    return api.get<unknown>('/v1/users/me/progress');
   },
   getAchievements() {
-    return api.get<unknown[]>('/v1/gamification/achievements');
+    return api.get<unknown[]>('/v1/achievements');
   },
 };
 
 export const ratingsApi = {
   getMine() {
-    return api.get<unknown>('/v1/ratings/me');
+    return api.get<unknown>('/v1/users/me/rating');
   },
   getHistory() {
-    return api.get<unknown[]>('/v1/ratings/history');
+    return api.get<unknown[]>('/v1/users/me/rating/history');
   },
 };
 
