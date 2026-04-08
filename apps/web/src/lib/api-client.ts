@@ -58,9 +58,9 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 }
 
 export const problemsApi = {
-  list(params: { page?: number; limit?: number; difficulty?: string; topic?: string; tag?: string; search?: string } = {}) {
+  list(params: { page?: number; limit?: number; difficulty?: string; topic?: string; tag?: string; search?: string; cursor?: string } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number }>(`/v1/problems${query}`);
+    return api.get<{ items: unknown[]; total: number; hasMore: boolean; nextCursor: string | null }>(`/v1/problems${query}`);
   },
   getBySlug(slug: string) {
     return api.get<unknown>(`/v1/problems/${slug}`);
@@ -96,14 +96,24 @@ export const matchApi = {
   },
 };
 
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  rating: number;
+  matchesPlayed: number;
+  wins: number;
+}
+
 export const leaderboardApi = {
   global(params: { type?: string; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ entries: unknown[] }>(`/v1/leaderboard${query}`);
+    return api.get<{ entries: LeaderboardEntry[] }>(`/v1/leaderboard${query}`);
   },
   friends(params: { type?: string; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ entries: unknown[] }>(`/v1/leaderboard/friends${query}`);
+    return api.get<{ entries: LeaderboardEntry[] }>(`/v1/leaderboard/friends${query}`);
   },
 };
 
@@ -151,10 +161,10 @@ export const socialApi = {
 
 export const submissionsApi = {
   submit(body: { problemSlug: string; code: string; language: string; matchId?: string }) {
-    return api.post<unknown>('/v1/submissions', body);
+    return api.post<unknown>(`/v1/problems/${body.problemSlug}/submissions`, body);
   },
-  run(body: { code: string; language: string; input: string }) {
-    return api.post<unknown>('/v1/submissions/run', body);
+  run(slug: string, body: { code: string; language: string; input: string }) {
+    return api.post<unknown>(`/v1/problems/${slug}/run`, body);
   },
   getById(id: string) {
     return api.get<unknown>(`/v1/submissions/${id}`);

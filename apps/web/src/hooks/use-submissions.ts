@@ -48,7 +48,8 @@ export function useSubmissions({
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSubmissions = useCallback(async (): Promise<Submission[]> => {
-    const data = await problemsApi.submissions(problemSlug) as Submission[];
+    const res = await problemsApi.getSubmissions(problemSlug) as { items: Submission[] };
+    const data = res.items ?? [];
     setSubmissions(data);
     return data;
   }, [problemSlug]);

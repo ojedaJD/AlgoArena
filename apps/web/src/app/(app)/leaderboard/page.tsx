@@ -3,28 +3,17 @@
 import { useState, useEffect } from 'react';
 import { Trophy, Users, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { leaderboardApi } from '@/lib/api-client';
+import { leaderboardApi, type LeaderboardEntry } from '@/lib/api-client';
+import { useCurrentUserId } from '@/hooks/use-current-user-id';
 import { LeaderboardTable } from '@/components/leaderboard/leaderboard-table';
 
 type Tab = 'global' | 'friends';
-
-interface LeaderboardEntry {
-  rank: number;
-  userId: string;
-  displayName: string;
-  avatarUrl: string | null;
-  rating: number;
-  matchesPlayed: number;
-  wins: number;
-}
 
 export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<Tab>('global');
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // TODO: Get currentUserId from auth context
-  const currentUserId = 'me';
+  const currentUserId = useCurrentUserId();
 
   useEffect(() => {
     setIsLoading(true);
@@ -33,7 +22,7 @@ export default function LeaderboardPage() {
       : leaderboardApi.friends();
 
     fetch
-      .then((data) => setEntries(data as LeaderboardEntry[]))
+      .then((data) => setEntries(data.entries))
       .catch(() => setEntries([]))
       .finally(() => setIsLoading(false));
   }, [activeTab]);

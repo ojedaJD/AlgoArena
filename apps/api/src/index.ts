@@ -43,22 +43,18 @@ async function main() {
     uptime: process.uptime(),
   }));
 
-  // ── Module Routes (v1 prefix) ────────────────────────────────────
-  await app.register(
-    async (v1) => {
-      await v1.register(userRoutes);
-      await v1.register(problemRoutes);
-      await v1.register(submissionRoutes);
-      await v1.register(curriculumRoutes);
-      await v1.register(matchRoutes);
-      await v1.register(ratingRoutes);
-      await v1.register(gamificationRoutes);
-      await v1.register(socialRoutes);
-      await v1.register(leaderboardRoutes);
-      await v1.register(discussionRoutes);
-    },
-    { prefix: '/v1' },
-  );
+  // ── Module Routes ────────────────────────────────────────────────
+  // Routes already include the /v1 prefix in their path definitions.
+  await app.register(userRoutes);
+  await app.register(problemRoutes);
+  await app.register(submissionRoutes);
+  await app.register(curriculumRoutes);
+  await app.register(matchRoutes);
+  await app.register(ratingRoutes);
+  await app.register(gamificationRoutes);
+  await app.register(socialRoutes);
+  await app.register(leaderboardRoutes);
+  await app.register(discussionRoutes);
 
   // ── Start ────────────────────────────────────────────────────────
   try {

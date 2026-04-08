@@ -26,7 +26,7 @@ export default function TopicPage() {
   useEffect(() => {
     setIsLoading(true);
     topicsApi
-      .get(slug)
+      .getBySlug(slug)
       .then((data) => setTopic(data as TopicDetail))
       .catch(() => {})
       .finally(() => setIsLoading(false));

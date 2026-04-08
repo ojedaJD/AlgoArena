@@ -9,7 +9,7 @@ import { MatchTimer } from './match-timer';
 import { OpponentStatus } from './opponent-status';
 import type { Problem, MatchRoomState, RunResult } from '@dsa/shared';
 import { SubmissionStatus } from '@dsa/shared';
-import { problemsApi } from '@/lib/api-client';
+import { submissionsApi } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
 const MATCH_DURATION_MS = 45 * 60 * 1000; // 45 minutes
@@ -42,7 +42,7 @@ export function MatchRoom({ matchState, problem, currentUserId, onSubmit }: Matc
     if (!problem) return;
     setIsRunning(true);
     try {
-      const result = await problemsApi.run(problem.slug, { language, code }) as RunResult;
+      const result = await submissionsApi.run(problem.slug, { language, code, input: '' }) as RunResult;
       setRunResult(result);
     } catch {
       // ignore

@@ -100,15 +100,10 @@ export default function ProblemsPage() {
         difficulty: filters.difficulty || undefined,
         topic: filters.topic || undefined,
         search: filters.search || undefined,
-      }) as { items: ProblemSummary[]; total: number } | ProblemSummary[];
+      });
 
-      if (Array.isArray(data)) {
-        setProblems(data);
-        setTotal(data.length);
-      } else {
-        setProblems(data.items ?? []);
-        setTotal(data.total ?? 0);
-      }
+      setProblems((data.items ?? []) as ProblemSummary[]);
+      setTotal(data.total ?? 0);
     } catch {
       setProblems([]);
       setTotal(0);

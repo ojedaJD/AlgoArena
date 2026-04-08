@@ -14,6 +14,18 @@ import type {
   UpdateTestCaseInput,
 } from './problems.schema.js';
 
+const PROBLEM_LIST_SELECT = {
+  id: true,
+  slug: true,
+  title: true,
+  difficulty: true,
+  isPublished: true,
+  createdAt: true,
+  tags: { select: { tag: true } },
+  topics: { select: { topic: { select: { id: true, slug: true, title: true } } } },
+  _count: { select: { submissions: true } },
+} as const;
+
 export class ProblemService {
   // ─── Public Queries ──────────────────────────────────────────────────────────
 
@@ -22,8 +34,6 @@ export class ProblemService {
    * Optionally marks each problem as solved when a userId is supplied.
    */
   static async list(filters: ProblemFilters, userId?: string) {
-    const { prismaArgs, wrap } = paginate({ cursor: filters.cursor, limit: filters.limit });
-
     const where: Parameters<typeof prisma.problem.findMany>[0]['where'] = {
       isPublished: true,
     };
@@ -47,54 +57,54 @@ export class ProblemService {
     }
 
     if (filters.search) {
-      const term = `%${filters.search}%`;
       where.OR = [
         { title: { contains: filters.search, mode: 'insensitive' } },
         { slug: { contains: filters.search, mode: 'insensitive' } },
       ];
-      void term; // keep linter happy – using Prisma's built-in search
     }
 
-    const rows = await prisma.problem.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      ...prismaArgs,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        difficulty: true,
-        isPublished: true,
-        createdAt: true,
-        tags: { select: { tag: true } },
-        topics: { select: { topic: { select: { id: true, slug: true, title: true } } } },
-        _count: { select: { submissions: true } },
-      },
-    });
+    const limit = filters.limit ?? 20;
 
-    const result = wrap(rows);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rows: any[];
+    let total: number;
+    let nextCursor: string | null = null;
+    let hasMore = false;
 
-    // Annotate solved status when caller is authenticated
-    if (userId) {
-      const problemIds = result.data.map((p) => p.id);
+    if (filters.page) {
+      const skip = (filters.page - 1) * limit;
+      [rows, total] = await Promise.all([
+        prisma.problem.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit, select: PROBLEM_LIST_SELECT }),
+        prisma.problem.count({ where }),
+      ]);
+    } else {
+      const { prismaArgs, wrap } = paginate({ cursor: filters.cursor, limit });
+      [rows, total] = await Promise.all([
+        prisma.problem.findMany({ where, orderBy: { createdAt: 'desc' }, ...prismaArgs, select: PROBLEM_LIST_SELECT }),
+        prisma.problem.count({ where }),
+      ]);
+      const wrapped = wrap(rows);
+      rows = wrapped.data;
+      nextCursor = wrapped.nextCursor;
+      hasMore = wrapped.hasMore;
+    }
+
+    let solvedSet = new Set<string>();
+    if (userId && rows.length > 0) {
       const solved = await prisma.submission.findMany({
-        where: {
-          userId,
-          problemId: { in: problemIds },
-          status: 'ACCEPTED',
-        },
+        where: { userId, problemId: { in: rows.map((p) => p.id) }, status: 'ACCEPTED' },
         select: { problemId: true },
         distinct: ['problemId'],
       });
-      const solvedSet = new Set(solved.map((s) => s.problemId));
-
-      return {
-        ...result,
-        data: result.data.map((p) => ({ ...p, solved: solvedSet.has(p.id) })),
-      };
+      solvedSet = new Set(solved.map((s) => s.problemId));
     }
 
-    return { ...result, data: result.data.map((p) => ({ ...p, solved: false })) };
+    const items = rows.map((p) => ({
+      ...p,
+      tags: (p.tags as { tag: string }[]).map((t) => t.tag),
+      solvedByUser: solvedSet.has(p.id),
+    }));
+    return { items, total, nextCursor, hasMore };
   }
 
   /**
@@ -132,7 +142,11 @@ export class ProblemService {
       solved = !!accepted;
     }
 
-    return { ...problem, solved };
+    return {
+      ...problem,
+      tags: problem.tags.map((t) => t.tag),
+      solvedByUser: solved,
+    };
   }
 
   // ─── Admin Mutations ─────────────────────────────────────────────────────────

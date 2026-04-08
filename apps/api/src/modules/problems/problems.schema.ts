@@ -37,6 +37,7 @@ export const problemFiltersSchema = z.object({
   tag: z.string().optional(),
   search: z.string().max(200).optional(),
   cursor: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 

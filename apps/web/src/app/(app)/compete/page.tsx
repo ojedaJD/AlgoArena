@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MatchLobby } from '@/components/match/match-lobby';
 import { matchApi } from '@/lib/api-client';
+import { useCurrentUserId } from '@/hooks/use-current-user-id';
 import type { MatchWithParticipants } from '@dsa/shared';
 import { MatchStatus } from '@dsa/shared';
 import { formatRelativeTime, cn } from '@/lib/utils';
@@ -59,15 +60,13 @@ function RecentMatchRow({ match, currentUserId }: { match: MatchWithParticipants
 export default function CompetePage() {
   const [recentMatches, setRecentMatches] = useState<MatchWithParticipants[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
-
-  // TODO: get currentUserId from auth context
-  const currentUserId = 'me';
+  const currentUserId = useCurrentUserId();
 
   useEffect(() => {
     setIsLoadingMatches(true);
     matchApi
-      .list({ limit: 5 })
-      .then((data) => setRecentMatches(data as MatchWithParticipants[]))
+      .getHistory({ limit: 5 })
+      .then((data) => setRecentMatches((data.items ?? []) as MatchWithParticipants[]))
       .catch(() => setRecentMatches([]))
       .finally(() => setIsLoadingMatches(false));
   }, []);

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, MessageSquare, Clock, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { problemsApi } from '@/lib/api-client';
+import { problemsApi, submissionsApi } from '@/lib/api-client';
 import { CodeEditor, type SupportedLanguage } from '@/components/editor/code-editor';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
 import { OutputPanel } from '@/components/editor/output-panel';
@@ -50,7 +50,7 @@ export default function ProblemPage() {
     setIsLoadingProblem(true);
     setProblemError(null);
     Promise.all([
-      problemsApi.get(slug) as Promise<Problem>,
+      problemsApi.getBySlug(slug) as Promise<Problem>,
     ])
       .then(([p]) => {
         setProblem(p);
@@ -86,7 +86,7 @@ export default function ProblemPage() {
     setTestResults([]);
     setVerdict(null);
     try {
-      const result = await problemsApi.run(slug, { language, code }) as RunResult & {
+      const result = await submissionsApi.run(slug, { language, code, input: '' }) as RunResult & {
         testResults?: typeof testResults;
       };
       setRunResult(result);
@@ -127,7 +127,7 @@ export default function ProblemPage() {
     setRunResult(null);
     setTestResults([]);
     try {
-      const submission = await problemsApi.submit(slug, { language, code }) as {
+      const submission = await submissionsApi.submit({ problemSlug: slug, language, code }) as {
         id: string;
         status: SubmissionStatus;
         passedCases: number;
@@ -157,7 +157,7 @@ export default function ProblemPage() {
       setIsRunning(true);
       setRunResult(null);
       try {
-        const result = await problemsApi.run(slug, { language, code, input }) as RunResult;
+        const result = await submissionsApi.run(slug, { language, code, input }) as RunResult;
         setRunResult(result);
       } catch (err) {
         const error = err as Error;
