@@ -1,4 +1,25 @@
-.PHONY: dev build install docker-up docker-down db-migrate db-seed db-studio judge-build-images
+.PHONY: setup dev build install docker-up docker-down db-migrate db-seed db-setup db-studio judge-build-images typecheck lint
+
+# ── First-time setup (one command to get everything running) ──────────
+setup:
+	@echo "==> Starting PostgreSQL and Redis..."
+	docker compose up -d postgres redis
+	@echo "==> Waiting for PostgreSQL to be ready..."
+	@until docker compose exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
+	@if [ ! -f .env ]; then cp .env.example .env && echo "==> Created .env from .env.example"; fi
+	@if [ ! -f apps/api/.env ]; then cp apps/api/.env.example apps/api/.env && echo "==> Created apps/api/.env"; fi
+	@echo "==> Installing dependencies..."
+	npm install
+	@echo "==> Running database migrations..."
+	cd apps/api && npx prisma migrate deploy
+	@echo "==> Generating Prisma client..."
+	cd apps/api && npx prisma generate
+	@echo "==> Seeding database (topics, problems, curriculum)..."
+	cd apps/api && npx prisma db seed
+	@echo "==> Importing curriculum content from Markdown..."
+	npm run curriculum:import
+	@echo ""
+	@echo "Setup complete! Run 'make dev' to start the application."
 
 install:
 	npm install
@@ -10,16 +31,19 @@ build:
 	npx turbo run build
 
 docker-up:
-	docker compose up -d
+	docker compose up -d postgres redis
 
 docker-down:
 	docker compose down
 
 db-migrate:
-	cd apps/api && npx prisma migrate dev
+	cd apps/api && npx prisma migrate deploy
 
 db-seed:
 	cd apps/api && npx prisma db seed
+
+db-setup:
+	cd apps/api && npx prisma migrate deploy && npx prisma db seed
 
 db-studio:
 	cd apps/api && npx prisma studio

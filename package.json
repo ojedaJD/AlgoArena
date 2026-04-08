@@ -11,6 +11,7 @@
     "db:migrate": "cd apps/api && npx prisma migrate dev",
     "db:seed": "cd apps/api && npx prisma db seed",
     "db:studio": "cd apps/api && npx prisma studio",
+    "db:setup": "cd apps/api && npx prisma migrate deploy && npx prisma db seed",
     "content:lint": "npm run content:lint --workspace=apps/api",
     "curriculum:import": "npm run curriculum:import --workspace=apps/api"
   },
