@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - staging
           - production
       tag:
-        description: 'Docker image tag (defaults to short SHA)'
+        description: "Docker image tag (defaults to short SHA)"
         required: false
-        default: ''
+        default: ""
   push:
     branches:
       - main
