@@ -7,7 +7,6 @@ import {
   ValidationError,
 } from '../../lib/errors.js';
 
-const ONLINE_KEY = (userId: string) => `ws:presence:user:${userId}`;
 
 export class SocialService {
   /**

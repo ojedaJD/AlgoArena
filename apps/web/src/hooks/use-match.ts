@@ -34,9 +34,9 @@ export function useMatch({ matchId, currentUserId, onMatchEnded }: UseMatchOptio
   useEffect(() => {
     setIsLoading(true);
     matchApi
-      .get(matchId)
-      .then((data) => setMatchData(data as MatchWithParticipants))
-      .catch((err) => setError(err.message ?? 'Failed to load match'))
+      .getMatch(matchId)
+      .then((data: unknown) => setMatchData(data as MatchWithParticipants))
+      .catch((err: Error) => setError(err.message ?? 'Failed to load match'))
       .finally(() => setIsLoading(false));
   }, [matchId]);
 

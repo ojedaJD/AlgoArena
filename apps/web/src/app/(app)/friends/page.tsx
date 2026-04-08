@@ -51,9 +51,7 @@ export default function FriendsPage() {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const results = await apiClient.get<SearchResult[]>('/users/search', {
-        params: { q: searchQuery },
-      });
+      const results = await apiClient.get<SearchResult[]>(`/users/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchResults(results);
     } catch {
       setSearchResults([]);

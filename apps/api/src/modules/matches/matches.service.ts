@@ -123,18 +123,17 @@ export class MatchService {
     player1Id: string,
     player2Id: string,
     mode: MatchMode,
-  ): Promise<{ id: string; problemSlug: string }> {
-    // Pick a random published problem
+  ): Promise<{ id: string; problemSlug: string | null }> {
+    // Pick a random published problem (may be null for placeholder matches)
     const problemCount = await prisma.problem.count({ where: { isPublished: true } });
-    const skip = Math.floor(Math.random() * Math.max(problemCount, 1));
-    const problem = await prisma.problem.findFirst({
-      where: { isPublished: true },
-      skip,
-      select: { id: true, slug: true },
-    });
-
-    if (!problem) {
-      throw new Error('No published problems available for match');
+    let problem: { id: string; slug: string } | null = null;
+    if (problemCount > 0) {
+      const skip = Math.floor(Math.random() * problemCount);
+      problem = await prisma.problem.findFirst({
+        where: { isPublished: true },
+        skip,
+        select: { id: true, slug: true },
+      });
     }
 
     // Get ratings for both players
@@ -144,11 +143,12 @@ export class MatchService {
     ]);
 
     // Create match + participants in a transaction
+    // problemId may be null if no published problems exist (placeholder match)
     const match = await prisma.match.create({
       data: {
         mode,
         status: 'WAITING',
-        problemId: problem.id,
+        problemId: problem?.id ?? null,
         participants: {
           create: [
             { userId: player1Id, ratingAtMatch: r1 },
@@ -160,14 +160,14 @@ export class MatchService {
     });
 
     // Initialize the state machine in Redis
-    await MatchStateMachine.create(match.id, problem.id, problem.slug);
+    await MatchStateMachine.create(match.id, problem?.id ?? null, problem?.slug ?? null);
 
     logger.info(
-      { matchId: match.id, player1Id, player2Id, mode, problemSlug: problem.slug },
+      { matchId: match.id, player1Id, player2Id, mode, problemSlug: problem?.slug ?? null },
       'Match created',
     );
 
-    return { id: match.id, problemSlug: problem.slug };
+    return { id: match.id, problemSlug: problem?.slug ?? null };
   }
 
   /**
@@ -195,17 +195,16 @@ export class MatchService {
       throw new ForbiddenError('You can only challenge friends');
     }
 
-    // Pick random problem
+    // Pick random problem (may be null for placeholder matches)
     const problemCount = await prisma.problem.count({ where: { isPublished: true } });
-    const skip = Math.floor(Math.random() * Math.max(problemCount, 1));
-    const problem = await prisma.problem.findFirst({
-      where: { isPublished: true },
-      skip,
-      select: { id: true, slug: true },
-    });
-
-    if (!problem) {
-      throw new Error('No published problems available');
+    let problem: { id: string; slug: string } | null = null;
+    if (problemCount > 0) {
+      const skip = Math.floor(Math.random() * problemCount);
+      problem = await prisma.problem.findFirst({
+        where: { isPublished: true },
+        skip,
+        select: { id: true, slug: true },
+      });
     }
 
     const r1 = await this.getUserRatingValue(userId);
@@ -215,7 +214,7 @@ export class MatchService {
       data: {
         mode: 'FRIEND',
         status: 'WAITING',
-        problemId: problem.id,
+        problemId: problem?.id ?? null,
         participants: {
           create: [{ userId, ratingAtMatch: r1 }],
         },
@@ -223,7 +222,7 @@ export class MatchService {
       select: { id: true },
     });
 
-    await MatchStateMachine.create(match.id, problem.id, problem.slug);
+    await MatchStateMachine.create(match.id, problem?.id ?? null, problem?.slug ?? null);
 
     // Notify the friend via Redis pub/sub
     await redis.publish(

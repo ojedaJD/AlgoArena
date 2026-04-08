@@ -6,7 +6,7 @@ import {
   submissionFiltersSchema,
   runCodeSchema,
 } from './submissions.schema.js';
-import { ValidationError, UnauthorizedError } from '../../lib/errors.js';
+import { ValidationError } from '../../lib/errors.js';
 
 export async function submissionRoutes(app: FastifyInstance) {
   // ─── POST /v1/problems/:slug/submissions ─────────────────────────────────

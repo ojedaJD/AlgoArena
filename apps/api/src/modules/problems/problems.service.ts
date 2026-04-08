@@ -1,4 +1,4 @@
-import { Difficulty } from '@prisma/client';
+import { Difficulty, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 import {
   NotFoundError,
@@ -24,7 +24,7 @@ export class ProblemService {
   static async list(filters: ProblemFilters, userId?: string) {
     const { prismaArgs, wrap } = paginate({ cursor: filters.cursor, limit: filters.limit });
 
-    const where: Parameters<typeof prisma.problem.findMany>[0]['where'] = {
+    const where: Prisma.ProblemWhereInput = {
       isPublished: true,
     };
 
@@ -224,7 +224,7 @@ export class ProblemService {
   static async getTestCases(problemId: string, includeHidden = false) {
     await ProblemService._requireExists(problemId);
 
-    const where: Parameters<typeof prisma.testCase.findMany>[0]['where'] = {
+    const where: Prisma.TestCaseWhereInput = {
       problemId,
       ...(includeHidden ? {} : { isPublic: true }),
     };
@@ -270,7 +270,7 @@ export class ProblemService {
    * Optionally filtered by difficulty.
    */
   static async getRandomForMatch(difficulty?: 'EASY' | 'MEDIUM' | 'HARD') {
-    const where: Parameters<typeof prisma.problem.findMany>[0]['where'] = {
+    const where: Prisma.ProblemWhereInput = {
       isPublished: true,
       ...(difficulty ? { difficulty: difficulty as Difficulty } : {}),
     };

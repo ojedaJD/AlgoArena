@@ -33,7 +33,7 @@ export default function LeaderboardPage() {
       : leaderboardApi.friends();
 
     fetch
-      .then((data) => setEntries(data as LeaderboardEntry[]))
+      .then((data) => setEntries((data as { entries: LeaderboardEntry[] }).entries))
       .catch(() => setEntries([]))
       .finally(() => setIsLoading(false));
   }, [activeTab]);

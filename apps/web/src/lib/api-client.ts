@@ -182,3 +182,67 @@ export const ratingsApi = {
     return api.get<unknown[]>('/v1/ratings/history');
   },
 };
+
+// ── Curriculum Track API helpers ──────────────────────────────────────────
+
+export interface CurriculumTrack {
+  slug: string;
+  title: string;
+  description: string;
+  orderIndex: number;
+}
+
+export interface CurriculumSection {
+  id: string;
+  title: string;
+  orderIndex: number;
+  items: CurriculumItem[];
+}
+
+export interface CurriculumItem {
+  id: string;
+  kind: 'LESSON' | 'TOPIC' | 'PROBLEM';
+  title: string;
+  refId: string;
+  orderIndex: number;
+}
+
+export interface CurriculumTrackDetail extends CurriculumTrack {
+  sections: CurriculumSection[];
+}
+
+export interface LessonProgressEntry {
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface CurriculumProgress {
+  lessons: Record<string, LessonProgressEntry>;
+}
+
+export interface LessonDetail {
+  id: string;
+  title: string;
+  contentMd: string;
+  topicId: string;
+  orderIndex: number;
+}
+
+export const curriculumApi = {
+  getTracks() {
+    return api.get<CurriculumTrack[]>('/v1/curriculum/tracks');
+  },
+  getTrack(slug: string) {
+    return api.get<CurriculumTrackDetail>(`/v1/curriculum/tracks/${slug}`);
+  },
+  getProgress() {
+    return api.get<CurriculumProgress>('/v1/users/me/curriculum/progress');
+  },
+  updateLessonProgress(lessonId: string, status: string) {
+    return api.post<LessonProgressEntry>(`/v1/lessons/${lessonId}/progress`, { status });
+  },
+  getLesson(id: string) {
+    return api.get<LessonDetail>(`/v1/lessons/${id}`);
+  },
+};

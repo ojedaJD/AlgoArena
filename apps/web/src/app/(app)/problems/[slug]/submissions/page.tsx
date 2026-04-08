@@ -81,8 +81,8 @@ export default function SubmissionsPage() {
   useEffect(() => {
     setIsLoading(true);
     problemsApi
-      .submissions(slug)
-      .then((data) => setSubmissions(data as Submission[]))
+      .getSubmissions(slug)
+      .then((data) => setSubmissions((data.items ?? data) as Submission[]))
       .catch(() => setSubmissions([]))
       .finally(() => setIsLoading(false));
   }, [slug]);

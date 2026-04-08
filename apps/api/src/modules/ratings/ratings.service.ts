@@ -1,7 +1,6 @@
 import { prisma } from '../../config/prisma.js';
 import { redis } from '../../config/redis.js';
 import { logger } from '../../lib/logger.js';
-import { NotFoundError } from '../../lib/errors.js';
 import { RATING_DEFAULTS } from '@dsa/shared';
 import { calculateGlicko2 } from './glicko2.js';
 import type { RatingMode } from '@prisma/client';
@@ -49,7 +48,7 @@ export class RatingService {
   async updateRatings(
     matchId: string,
     winnerId: string | null,
-    loserId: string | null,
+    _loserId: string | null,
     isDraw: boolean,
     participantIds: string[],
   ): Promise<Record<string, number>> {

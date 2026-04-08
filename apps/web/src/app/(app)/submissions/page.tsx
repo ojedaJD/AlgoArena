@@ -51,7 +51,7 @@ export default function SubmissionsPage() {
   useEffect(() => {
     setIsLoading(true);
     apiClient
-      .get<SubmissionWithSlug[]>('/submissions/me', { params: { page, limit: 20 } })
+      .get<SubmissionWithSlug[]>(`/submissions/me?page=${page}&limit=20`)
       .then(setSubmissions)
       .catch(() => setSubmissions([]))
       .finally(() => setIsLoading(false));

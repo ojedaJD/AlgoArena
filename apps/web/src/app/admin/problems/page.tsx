@@ -35,9 +35,7 @@ export default function AdminProblemsPage() {
   const fetchProblems = async () => {
     setIsLoading(true);
     try {
-      const data = await apiClient.get<Problem[]>('/admin/problems', {
-        params: { limit: 100 },
-      });
+      const data = await apiClient.get<Problem[]>('/admin/problems?limit=100');
       setProblems(data);
     } catch {
       setProblems([]);

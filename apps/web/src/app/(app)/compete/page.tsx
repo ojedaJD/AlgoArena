@@ -66,8 +66,8 @@ export default function CompetePage() {
   useEffect(() => {
     setIsLoadingMatches(true);
     matchApi
-      .list({ limit: 5 })
-      .then((data) => setRecentMatches(data as MatchWithParticipants[]))
+      .getHistory({ limit: 5 })
+      .then((data) => setRecentMatches(data.items as MatchWithParticipants[]))
       .catch(() => setRecentMatches([]))
       .finally(() => setIsLoadingMatches(false));
   }, []);

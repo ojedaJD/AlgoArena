@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io';
 import { verifyToken } from '../config/auth0.js';
 import { prisma } from '../config/prisma.js';
+import { config } from '../config/env.js';
 import { logger } from '../lib/logger.js';
 
 export interface SocketUser {
@@ -10,23 +11,41 @@ export interface SocketUser {
 }
 
 declare module 'socket.io' {
-  interface Socket {
-    data: {
-      user: SocketUser;
-    };
+  interface SocketData {
+    user: SocketUser;
   }
 }
+
+// Dev mode: skip Auth0 JWT validation when no real domain is configured
+const isDevMode = !config.AUTH0_DOMAIN || config.AUTH0_DOMAIN === 'your-tenant.us.auth0.com';
 
 /**
  * Socket.io authentication middleware.
  * Validates the JWT from the handshake auth object and attaches the user
  * to socket.data for all subsequent event handlers.
+ * In dev mode (no Auth0 configured), uses a mock admin user.
  */
 export async function authMiddleware(
   socket: Socket,
   next: (err?: Error) => void,
 ): Promise<void> {
   try {
+    // Dev mode bypass — upsert a local dev user and skip token validation
+    if (isDevMode) {
+      const user = await prisma.user.upsert({
+        where: { auth0Sub: 'dev|local' },
+        update: {},
+        create: {
+          auth0Sub: 'dev|local',
+          email: 'dev@algoarena.local',
+          role: 'ADMIN',
+        },
+        select: { id: true, auth0Sub: true, role: true },
+      });
+      socket.data.user = user;
+      return next();
+    }
+
     const token =
       socket.handshake.auth?.token ??
       socket.handshake.headers.authorization?.replace('Bearer ', '');

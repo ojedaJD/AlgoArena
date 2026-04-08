@@ -16,12 +16,14 @@ import { userRoutes } from './modules/users/users.routes.js';
 import { problemRoutes } from './modules/problems/problems.routes.js';
 import { submissionRoutes } from './modules/submissions/submissions.routes.js';
 import { curriculumRoutes } from './modules/curriculum/curriculum.routes.js';
+import { curriculumTracksRoutes } from './modules/curriculum-tracks/curriculum-tracks.routes.js';
 import { matchRoutes } from './modules/matches/matches.routes.js';
 import { ratingRoutes } from './modules/ratings/ratings.routes.js';
 import { gamificationRoutes } from './modules/gamification/gamification.routes.js';
 import { socialRoutes } from './modules/social/social.routes.js';
 import { leaderboardRoutes } from './modules/leaderboard/leaderboard.routes.js';
 import { discussionRoutes } from './modules/discussions/discussions.routes.js';
+import { setupMatchCompletionHandler } from './modules/matches/match-completion-handler.js';
 
 async function main() {
   const app = Fastify({
@@ -50,6 +52,7 @@ async function main() {
       await v1.register(problemRoutes);
       await v1.register(submissionRoutes);
       await v1.register(curriculumRoutes);
+      await v1.register(curriculumTracksRoutes);
       await v1.register(matchRoutes);
       await v1.register(ratingRoutes);
       await v1.register(gamificationRoutes);
@@ -59,6 +62,9 @@ async function main() {
     },
     { prefix: '/v1' },
   );
+
+  // ── Background Handlers ────────────────────────────────────────
+  setupMatchCompletionHandler();
 
   // ── Start ────────────────────────────────────────────────────────
   try {

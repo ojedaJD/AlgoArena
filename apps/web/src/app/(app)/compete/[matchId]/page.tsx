@@ -36,9 +36,9 @@ export default function MatchPage() {
     if (!matchState?.problemSlug) return;
     setProblemError(null);
     problemsApi
-      .get(matchState.problemSlug)
-      .then((p) => setProblem(p as Problem))
-      .catch((err) => setProblemError(err.message));
+      .getBySlug(matchState.problemSlug)
+      .then((p: unknown) => setProblem(p as Problem))
+      .catch((err: Error) => setProblemError(err.message));
   }, [matchState?.problemSlug]);
 
   if (isLoading || (!matchState && !error)) {
