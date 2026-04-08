@@ -11,10 +11,16 @@ setup:
 	else \
 		echo "==> Docker not available — using local services (Codespaces)"; \
 		echo "==> Ensuring PostgreSQL is running..."; \
-		pg_isready -U postgres > /dev/null 2>&1 || (sudo service postgresql start && sleep 2); \
+		pg_isready > /dev/null 2>&1 || (sudo service postgresql start && sleep 2); \
+		echo "==> Configuring PostgreSQL for password-less local access..."; \
+		sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" 2>/dev/null || true; \
+		sudo sed -i 's/^local.*all.*postgres.*peer/local all postgres trust/' /etc/postgresql/*/main/pg_hba.conf 2>/dev/null || true; \
+		sudo sed -i 's/^host.*all.*all.*127.*md5/host all all 127.0.0.1\/32 trust/' /etc/postgresql/*/main/pg_hba.conf 2>/dev/null || true; \
+		sudo service postgresql restart && sleep 2; \
 		echo "==> Creating database if it doesn't exist..."; \
-		psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='dsa_platform'" | grep -q 1 || \
-			psql -U postgres -c "CREATE DATABASE dsa_platform;"; \
+		psql -U postgres -h 127.0.0.1 -tc "SELECT 1 FROM pg_database WHERE datname='dsa_platform'" 2>/dev/null | grep -q 1 || \
+			psql -U postgres -h 127.0.0.1 -c "CREATE DATABASE dsa_platform;" 2>/dev/null || \
+			sudo -u postgres createdb dsa_platform 2>/dev/null || true; \
 		echo "==> Ensuring Redis is running..."; \
 		redis-cli ping > /dev/null 2>&1 || (redis-server --daemonize yes && sleep 1); \
 	fi
