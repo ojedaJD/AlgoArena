@@ -36,41 +36,22 @@ const DEV_USER: AuthUser = {
 export function useAuth(): UseAuthReturn {
   const isAuth0Enabled = Boolean(process.env.NEXT_PUBLIC_AUTH0_ENABLED);
 
-  // When Auth0 is configured, use the real provider
-  if (isAuth0Enabled) {
+  const useUser: () => { user: unknown; isLoading: boolean } = (() => {
+    if (!isAuth0Enabled) {
+      return () => ({ user: DEV_USER, isLoading: false });
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { useUser } = require('@auth0/nextjs-auth0/client');
-      return useAuth0Real(useUser);
+      const mod = require('@auth0/nextjs-auth0/client');
+      return mod.useUser as () => { user: unknown; isLoading: boolean };
     } catch {
-      // Fall through to dev mode
+      return () => ({ user: DEV_USER, isLoading: false });
     }
-  }
+  })();
 
-  // Dev mode — return a mock user so all pages are accessible
-  const login = useCallback((returnTo?: string) => {
-    if (returnTo) window.location.href = returnTo;
-  }, []);
-
-  const logout = useCallback(() => {
-    window.location.href = '/';
-  }, []);
-
-  return {
-    user: DEV_USER,
-    isLoading: false,
-    isAuthenticated: true,
-    displayName: DEV_USER.name!,
-    avatarUrl: undefined,
-    isAdmin: true,
-    login,
-    logout,
-  };
-}
-
-function useAuth0Real(useUser: () => { user: unknown; isLoading: boolean }): UseAuthReturn {
   const { user: rawUser, isLoading } = useUser();
-  const user = rawUser as AuthUser | null | undefined;
+  const user = (rawUser as AuthUser | null | undefined) ?? null;
 
   const isAuthenticated = Boolean(user && !isLoading);
 
@@ -83,23 +64,32 @@ function useAuth0Real(useUser: () => { user: unknown; isLoading: boolean }): Use
   const avatarUrl = user?.picture;
 
   const roles = user?.['https://algoarena.io/roles'] ?? [];
-  const isAdmin = roles.includes('admin');
+  const isAdmin = roles.includes('admin') || user?.sub === DEV_USER.sub;
 
   const login = useCallback((returnTo?: string) => {
+    if (!isAuth0Enabled) {
+      if (returnTo) window.location.href = returnTo;
+      return;
+    }
     const params = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
     window.location.href = `/api/auth/login${params}`;
-  }, []);
+  }, [isAuth0Enabled]);
 
   const logout = useCallback(() => {
+    if (!isAuth0Enabled) {
+      window.location.href = '/';
+      return;
+    }
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { disconnectSocket } = require('@/lib/socket');
       disconnectSocket();
     } catch { /* ignore */ }
     window.location.href = '/api/auth/logout';
-  }, []);
+  }, [isAuth0Enabled]);
 
   return {
-    user: user ?? null,
+    user,
     isLoading,
     isAuthenticated,
     displayName,

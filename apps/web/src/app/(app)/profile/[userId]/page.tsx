@@ -228,7 +228,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userId
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <p className="text-6xl mb-4">👤</p>
         <h1 className="text-2xl font-bold text-slate-100 mb-2">User Not Found</h1>
-        <p className="text-slate-400 text-sm mb-6">This profile doesn't exist or has been removed.</p>
+        <p className="text-slate-400 text-sm mb-6">This profile doesn&apos;t exist or has been removed.</p>
         <Link href="/leaderboard">
           <Button variant="outline" size="sm">
             <ArrowLeft size={14} className="mr-2" />

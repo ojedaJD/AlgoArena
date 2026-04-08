@@ -20,12 +20,9 @@ on:
       - main
 
 env:
-  # Replace these with your actual registry details before use.
-  # Example values for Docker Hub: docker.io/yourorg
-  # Example values for GHCR:      ghcr.io/yourorg
-  REGISTRY: ${{ secrets.DOCKER_REGISTRY_URL || 'ghcr.io/your-org' }}
-  API_IMAGE: ${{ secrets.DOCKER_REGISTRY_URL || 'ghcr.io/your-org' }}/algoarena-api
-  WEB_IMAGE: ${{ secrets.DOCKER_REGISTRY_URL || 'ghcr.io/your-org' }}/algoarena-web
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  API_IMAGE: ghcr.io/${{ github.repository_owner }}/algoarena-api
+  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/algoarena-web
 
 jobs:
   # ─── Build & Push API Image ───────────────────────────────────────────────
@@ -56,8 +53,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata (API)
         id: meta
@@ -107,8 +104,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Docker metadata (Web)
         id: meta
