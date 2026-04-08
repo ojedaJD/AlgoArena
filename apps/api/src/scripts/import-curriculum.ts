@@ -57,6 +57,21 @@ const LessonFrontmatterSchema = z.object({
   sourceUrl: z.string().optional(),
   sourceLicense: z.string().optional(),
   attributionText: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const hasAnyAttribution =
+    !!data.sourceTitle ||
+    !!data.sourceAuthor ||
+    !!data.sourceUrl ||
+    !!data.sourceLicense ||
+    !!data.attributionText;
+
+  if (!hasAnyAttribution) return;
+
+  if (!data.sourceTitle) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceTitle'], message: 'Required when attribution is present' });
+  if (!data.sourceAuthor) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceAuthor'], message: 'Required when attribution is present' });
+  if (!data.sourceUrl) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceUrl'], message: 'Required when attribution is present' });
+  if (!data.sourceLicense) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceLicense'], message: 'Required when attribution is present' });
+  if (!data.attributionText) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['attributionText'], message: 'Required when attribution is present' });
 });
 
 type LessonFrontmatter = z.infer<typeof LessonFrontmatterSchema>;
@@ -103,6 +118,64 @@ function parseFrontmatter(raw: string): { data: Record<string, unknown>; content
   }
 
   return { data, content };
+}
+
+function normalizeRelativeLinks(contentMd: string, fm: LessonFrontmatter): string {
+  if (!fm.sourceUrl) return contentMd;
+
+  let out = contentMd;
+
+  // Normalize Donne Martin System Design Primer relative links
+  if (fm.sourceUrl.includes('raw.githubusercontent.com/donnemartin/system-design-primer/')) {
+    // README content sometimes uses relative links like solutions/... or ../scaling_aws/...
+    out = out.replace(/\]\(solutions\//g, '](https://github.com/donnemartin/system-design-primer/blob/master/solutions/');
+    out = out.replace(/\]\(\.\.\//g, '](https://github.com/donnemartin/system-design-primer/blob/master/solutions/system_design/');
+  }
+
+  // Normalize LinkedIn School of SRE relative links
+  if (fm.sourceUrl.includes('raw.githubusercontent.com/linkedin/school-of-sre/')) {
+    // Convert links like (courses/...) or (level101/...) to GitHub blob links if they appear.
+    out = out.replace(
+      /\]\((courses\/[^\)]+)\)/g,
+      '](https://github.com/linkedin/school-of-sre/blob/main/$1)',
+    );
+  }
+
+  return out;
+}
+
+function stripHtmlArtifacts(contentMd: string): string {
+  let out = contentMd;
+
+  // Convert simple HTML anchors to Markdown links.
+  // Handles: <a href=http://x>Text</a> and <a href="http://x">Text</a>
+  out = out.replace(
+    /<a\s+href=(?:"([^"]+)"|'([^']+)'|([^\s>]+))\s*>([\s\S]*?)<\/a>/gi,
+    (_m, h1, h2, h3, text) => {
+      const href = (h1 ?? h2 ?? h3 ?? '').trim();
+      const label = String(text).replace(/<[^>]+>/g, '').trim() || href;
+      return href ? `[${label}](${href})` : label;
+    },
+  );
+
+  // Remove common inline HTML tags that are showing up verbatim in ReactMarkdown.
+  out = out.replace(/<\/?p[^>]*>/gi, '');
+  out = out.replace(/<br\s*\/?>/gi, '');
+  out = out.replace(/<\/?i>/gi, '');
+  out = out.replace(/<\/?center>/gi, '');
+  out = out.replace(/<\/?div[^>]*>/gi, '');
+
+  // Remove HTML images entirely.
+  out = out.replace(/<img[^>]*>/gi, '');
+
+  // Clean up excessive blank lines introduced by stripping.
+  out = out.replace(/\n{3,}/g, '\n\n');
+
+  return out.trimEnd() + '\n';
+}
+
+function normalizeLessonContent(contentMd: string, fm: LessonFrontmatter): string {
+  return stripHtmlArtifacts(normalizeRelativeLinks(contentMd, fm));
 }
 
 // ---------------------------------------------------------------------------
@@ -246,11 +319,12 @@ async function main() {
         allLessonSlugs.push(fm.slug);
 
         // Upsert Lesson
+        const normalizedContent = normalizeLessonContent(parsed.content, fm);
         const lesson = await prisma.lesson.upsert({
           where: { slug: fm.slug },
           update: {
             title: fm.title,
-            contentMd: parsed.content,
+            contentMd: normalizedContent,
             orderIndex: fm.orderIndex,
             estimatedMinutes: fm.estimatedMinutes ?? null,
             sourceTitle: fm.sourceTitle ?? null,
@@ -263,7 +337,7 @@ async function main() {
           create: {
             slug: fm.slug,
             title: fm.title,
-            contentMd: parsed.content,
+            contentMd: normalizedContent,
             orderIndex: fm.orderIndex,
             estimatedMinutes: fm.estimatedMinutes ?? null,
             sourceTitle: fm.sourceTitle ?? null,

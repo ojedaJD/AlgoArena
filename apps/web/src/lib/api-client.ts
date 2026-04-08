@@ -231,6 +231,11 @@ export interface LessonDetail {
   contentMd: string;
   topicId: string;
   orderIndex: number;
+  sourceTitle?: string | null;
+  sourceAuthor?: string | null;
+  sourceUrl?: string | null;
+  sourceLicense?: string | null;
+  attributionText?: string | null;
 }
 
 export const curriculumApi = {
