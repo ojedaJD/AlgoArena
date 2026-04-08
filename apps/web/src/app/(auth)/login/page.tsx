@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Code2, Zap, Swords, ArrowRight, Loader2 } from 'lucide-react';
@@ -10,14 +10,6 @@ import { Code2, Zap, Swords, ArrowRight, Loader2 } from 'lucide-react';
  * Shows a brief loading state while the redirect is in progress.
  */
 export default function LoginPage() {
-  return (
-    <Suspense fallback={<LoginPageShell returnTo="/dashboard" />}>
-      <LoginPageInner />
-    </Suspense>
-  );
-}
-
-function LoginPageInner() {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo') ?? '/dashboard';
 
@@ -26,10 +18,6 @@ function LoginPageInner() {
     window.location.href = `/api/auth/login?returnTo=${encoded}`;
   }, [returnTo]);
 
-  return <LoginPageShell returnTo={returnTo} />;
-}
-
-function LoginPageShell({ returnTo }: { returnTo: string }) {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4">
       {/* Background glow */}
