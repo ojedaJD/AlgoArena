@@ -203,9 +203,12 @@ export interface CurriculumSection {
 export interface CurriculumItem {
   id: string;
   kind: 'LESSON' | 'TOPIC' | 'PROBLEM';
-  title: string;
-  refId: string;
   orderIndex: number;
+  lessonId: string | null;
+  topicId: string | null;
+  problemSlug: string | null;
+  lesson: { id: string; title: string } | null;
+  topic: { id: string; slug: string; title: string } | null;
 }
 
 export interface CurriculumTrackDetail extends CurriculumTrack {

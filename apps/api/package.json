@@ -12,7 +12,9 @@
     "test": "vitest",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "content:lint": "tsx src/scripts/lint-curriculum.ts",
+    "curriculum:import": "tsx src/scripts/import-curriculum.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

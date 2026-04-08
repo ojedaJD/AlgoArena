@@ -147,15 +147,15 @@ export class CurriculumTracksService {
       where: { userId },
     });
 
-    const record: Record<string, { status: string; startedAt: Date | null; completedAt: Date | null }> = {};
+    const lessons: Record<string, { status: string; startedAt: Date | null; completedAt: Date | null }> = {};
     for (const row of rows) {
-      record[row.lessonId] = {
+      lessons[row.lessonId] = {
         status: row.status,
         startedAt: row.startedAt,
         completedAt: row.completedAt,
       };
     }
-    return record;
+    return { lessons };
   }
 
   /** Upsert lesson progress for a user. */

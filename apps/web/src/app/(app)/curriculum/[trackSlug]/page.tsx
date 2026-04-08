@@ -36,14 +36,34 @@ const KIND_COLORS = {
   PROBLEM: 'text-emerald-400',
 };
 
+function getItemRefId(item: CurriculumItem): string | null {
+  switch (item.kind) {
+    case 'LESSON':
+      return item.lessonId;
+    case 'TOPIC':
+      return item.topicId;
+    case 'PROBLEM':
+      return item.problemSlug;
+    default:
+      return null;
+  }
+}
+
+function getItemTitle(item: CurriculumItem): string {
+  if (item.kind === 'LESSON' && item.lesson) return item.lesson.title;
+  if (item.kind === 'TOPIC' && item.topic) return item.topic.title;
+  if (item.kind === 'PROBLEM' && item.problemSlug) return item.problemSlug;
+  return 'Untitled';
+}
+
 function getItemHref(item: CurriculumItem): string | null {
   switch (item.kind) {
     case 'LESSON':
-      return `/lessons/${item.refId}`;
+      return item.lessonId ? `/lessons/${item.lessonId}` : null;
     case 'PROBLEM':
-      return `/problems/${item.refId}`;
+      return item.problemSlug ? `/problems/${item.problemSlug}` : null;
     case 'TOPIC':
-      return `/topics/${item.refId}`;
+      return item.topic ? `/topics/${item.topic.slug}` : null;
     default:
       return null;
   }
@@ -61,8 +81,9 @@ function SectionGroup({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const items = section.items.sort((a, b) => a.orderIndex - b.orderIndex);
+  const pLessons = progress?.lessons ?? {};
   const completedCount = items.filter(
-    (item) => item.kind === 'LESSON' && progress?.lessons[item.refId]?.status === 'COMPLETED'
+    (item) => item.kind === 'LESSON' && getItemRefId(item) && pLessons[getItemRefId(item)!]?.status === 'COMPLETED'
   ).length;
   const lessonCount = items.filter((i) => i.kind === 'LESSON').length;
 
@@ -97,7 +118,8 @@ function SectionGroup({
             const Icon = KIND_ICONS[item.kind] ?? BookOpen;
             const colorClass = KIND_COLORS[item.kind] ?? 'text-slate-400';
             const href = getItemHref(item);
-            const lessonProgress = item.kind === 'LESSON' ? progress?.lessons[item.refId] : null;
+            const refId = getItemRefId(item);
+            const lessonProgress = item.kind === 'LESSON' && refId ? pLessons[refId] : null;
             const isCompleted = lessonProgress?.status === 'COMPLETED';
             const isInProgress = lessonProgress?.status === 'IN_PROGRESS';
 
@@ -126,7 +148,7 @@ function SectionGroup({
                       : 'text-slate-300 group-hover:text-white transition-colors'
                   )}
                 >
-                  {item.title}
+                  {getItemTitle(item)}
                 </span>
 
                 {/* Kind badge */}
@@ -186,11 +208,12 @@ export default function TrackDetailPage() {
     (sum, s) => sum + s.items.filter((i) => i.kind === 'LESSON').length,
     0
   );
+  const progressLessons = progress?.lessons ?? {};
   const completedLessons = sections.reduce(
     (sum, s) =>
       sum +
       s.items.filter(
-        (i) => i.kind === 'LESSON' && progress?.lessons[i.refId]?.status === 'COMPLETED'
+        (i) => i.kind === 'LESSON' && getItemRefId(i) && progressLessons[getItemRefId(i)!]?.status === 'COMPLETED'
       ).length,
     0
   );

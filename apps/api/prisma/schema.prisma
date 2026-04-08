@@ -117,11 +117,18 @@ model Topic {
 }
 
 model Lesson {
-  id         String @id @default(uuid())
-  topicId    String @map("topic_id")
-  title      String
-  contentMd  String @map("content_md") @db.Text
-  orderIndex Int    @map("order_index")
+  id               String  @id @default(uuid())
+  slug             String? @unique
+  topicId          String  @map("topic_id")
+  title            String
+  contentMd        String  @map("content_md") @db.Text
+  orderIndex       Int     @map("order_index")
+  estimatedMinutes Int?    @map("estimated_minutes")
+  sourceTitle      String? @map("source_title")
+  sourceAuthor     String? @map("source_author")
+  sourceUrl        String? @map("source_url")
+  sourceLicense    String? @map("source_license")
+  attributionText  String? @map("attribution_text")
 
   topic          Topic              @relation(fields: [topicId], references: [id], onDelete: Cascade)
   curriculumItems CurriculumItem[]
