@@ -40,9 +40,6 @@ jobs:
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Generate Prisma client (api)
-        run: cd apps/api && npx prisma generate
-
       - name: Run lint (all workspaces)
         run: npm run lint --workspaces --if-present
 
@@ -76,9 +73,6 @@ jobs:
       - name: Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
-
-      - name: Generate Prisma client (api)
-        run: cd apps/api && npx prisma generate
 
       - name: Restore Turbo cache
         uses: actions/cache@v4
@@ -122,9 +116,6 @@ jobs:
       - name: Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
-
-      - name: Generate Prisma client (api)
-        run: cd apps/api && npx prisma generate
 
       - name: Restore Turbo cache
         uses: actions/cache@v4
