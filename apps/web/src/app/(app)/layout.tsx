@@ -30,6 +30,9 @@ export default async function AppLayout({
       const { redirect } = await import('next/navigation');
       redirect('/login?returnTo=/dashboard');
     }
+  } else {
+    // Dev mode — no Auth0, treat as authenticated
+    isAuthed = true;
   }
 
   return (
