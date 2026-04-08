@@ -1,13 +1,12 @@
 import { redis } from '../../config/redis.js';
 import { prisma } from '../../config/prisma.js';
 import { logger } from '../../lib/logger.js';
-import { LIMITS } from '@dsa/shared';
+import { LIMITS, MatchStatus } from '@dsa/shared';
 import type { MatchRoomState } from '@dsa/shared';
-import type { MatchStatus as PrismaMatchStatus } from '@prisma/client';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
-type MatchState = 'WAITING' | 'READY_CHECK' | 'CODING' | 'JUDGING' | 'COMPLETED' | 'CANCELLED';
+type MatchState = MatchStatus;
 
 interface ParticipantState {
   userId: string;
@@ -32,12 +31,12 @@ interface PersistedState {
 
 // Valid transitions keyed by current state
 const VALID_TRANSITIONS: Record<MatchState, MatchState[]> = {
-  WAITING: ['READY_CHECK', 'CANCELLED'],
-  READY_CHECK: ['CODING', 'CANCELLED'],
-  CODING: ['JUDGING', 'CANCELLED'],
-  JUDGING: ['COMPLETED', 'CANCELLED'],
-  COMPLETED: [],
-  CANCELLED: [],
+  [MatchStatus.WAITING]: [MatchStatus.READY_CHECK, MatchStatus.CANCELLED],
+  [MatchStatus.READY_CHECK]: [MatchStatus.CODING, MatchStatus.CANCELLED],
+  [MatchStatus.CODING]: [MatchStatus.JUDGING, MatchStatus.CANCELLED],
+  [MatchStatus.JUDGING]: [MatchStatus.COMPLETED, MatchStatus.CANCELLED],
+  [MatchStatus.COMPLETED]: [],
+  [MatchStatus.CANCELLED]: [],
 };
 
 const STATE_KEY_PREFIX = 'match:state:';
@@ -59,7 +58,7 @@ export class MatchStateMachine {
 
   constructor(matchId: string, initial?: Partial<PersistedState>) {
     this.matchId = matchId;
-    this.state = initial?.state ?? 'WAITING';
+    this.state = initial?.state ?? MatchStatus.WAITING;
     this.problemId = initial?.problemId ?? null;
     this.problemSlug = initial?.problemSlug ?? null;
     this.participants = initial?.participants ?? [];
@@ -120,7 +119,7 @@ export class MatchStateMachine {
 
     await this.saveState();
 
-    if (this.participants.length === 2 && this.state === 'WAITING') {
+    if (this.participants.length === 2 && this.state === MatchStatus.WAITING) {
       await this.startReadyCheck();
     }
   }
@@ -129,7 +128,7 @@ export class MatchStateMachine {
    * Start the ready-check phase. Both players have 15 seconds to confirm.
    */
   async startReadyCheck(): Promise<void> {
-    await this.transition('READY_CHECK');
+    await this.transition(MatchStatus.READY_CHECK);
     this.readyCheckStartedAt = Date.now();
     await this.saveState();
 
@@ -137,7 +136,7 @@ export class MatchStateMachine {
     this.clearTimer();
     this.timer = setTimeout(async () => {
       try {
-        if (this.state === 'READY_CHECK') {
+        if (this.state === MatchStatus.READY_CHECK) {
           const notReady = this.participants
             .filter((p) => !p.ready)
             .map((p) => p.displayName)
@@ -154,7 +153,7 @@ export class MatchStateMachine {
    * Mark a player as ready. If both are ready, start coding.
    */
   async playerReady(userId: string): Promise<void> {
-    if (this.state !== 'READY_CHECK') {
+    if (this.state !== MatchStatus.READY_CHECK) {
       throw new Error(`Cannot ready up in state ${this.state}`);
     }
 
@@ -177,7 +176,7 @@ export class MatchStateMachine {
    * Begin the coding phase. Timer starts.
    */
   async startCoding(): Promise<void> {
-    await this.transition('CODING');
+    await this.transition(MatchStatus.CODING);
 
     const now = Date.now();
     this.codingStartedAt = now;
@@ -195,7 +194,7 @@ export class MatchStateMachine {
     this.clearTimer();
     this.timer = setTimeout(async () => {
       try {
-        if (this.state === 'CODING') {
+        if (this.state === MatchStatus.CODING) {
           await this.startJudging();
         }
       } catch (err) {
@@ -208,7 +207,7 @@ export class MatchStateMachine {
    * Record that a player has submitted code.
    */
   async playerSubmitted(userId: string, submissionId: string): Promise<void> {
-    if (this.state !== 'CODING' && this.state !== 'JUDGING') {
+    if (this.state !== MatchStatus.CODING && this.state !== MatchStatus.JUDGING) {
       throw new Error(`Cannot submit in state ${this.state}`);
     }
 
@@ -232,7 +231,7 @@ export class MatchStateMachine {
     await this.broadcast('match:opponent_submitted', { userId });
 
     // If both have submitted, start judging immediately
-    if (this.participants.every((p) => p.submitted) && this.state === 'CODING') {
+    if (this.participants.every((p) => p.submitted) && this.state === MatchStatus.CODING) {
       this.clearTimer();
       await this.startJudging();
     }
@@ -253,7 +252,7 @@ export class MatchStateMachine {
     // If all submitted participants have verdicts, resolve the match
     const submittedParticipants = this.participants.filter((p) => p.submitted);
     if (
-      this.state === 'JUDGING' &&
+      this.state === MatchStatus.JUDGING &&
       submittedParticipants.every((p) => p.verdict !== null)
     ) {
       await this.resolveWinner();
@@ -264,7 +263,7 @@ export class MatchStateMachine {
    * Transition to JUDGING phase.
    */
   async startJudging(): Promise<void> {
-    await this.transition('JUDGING');
+    await this.transition(MatchStatus.JUDGING);
 
     await prisma.match.update({
       where: { id: this.matchId },
@@ -291,7 +290,7 @@ export class MatchStateMachine {
     this.clearTimer();
     this.timer = setTimeout(async () => {
       try {
-        if (this.state === 'JUDGING') {
+        if (this.state === MatchStatus.JUDGING) {
           await this.resolveWinner();
         }
       } catch (err) {
@@ -393,7 +392,7 @@ export class MatchStateMachine {
       },
     });
 
-    await this.transition('COMPLETED');
+    await this.transition(MatchStatus.COMPLETED);
 
     await this.broadcast('match:ended', {
       winnerId,
@@ -421,7 +420,7 @@ export class MatchStateMachine {
     this.cancelReason = reason;
 
     const previousState = this.state;
-    this.state = 'CANCELLED';
+    this.state = MatchStatus.CANCELLED;
 
     await prisma.match.update({
       where: { id: this.matchId },
@@ -445,13 +444,13 @@ export class MatchStateMachine {
     const now = Date.now();
     let timeRemainingMs = 0;
 
-    if (this.state === 'READY_CHECK' && this.readyCheckStartedAt) {
+    if (this.state === MatchStatus.READY_CHECK && this.readyCheckStartedAt) {
       timeRemainingMs = Math.max(
         0,
         LIMITS.MATCH_READY_CHECK_MS - (now - this.readyCheckStartedAt),
       );
     } else if (
-      (this.state === 'CODING' || this.state === 'JUDGING') &&
+      (this.state === MatchStatus.CODING || this.state === MatchStatus.JUDGING) &&
       this.codingEndsAt
     ) {
       timeRemainingMs = Math.max(0, this.codingEndsAt - now);
@@ -533,7 +532,7 @@ export class MatchStateMachine {
     problemSlug: string | null,
   ): Promise<MatchStateMachine> {
     const machine = new MatchStateMachine(matchId, {
-      state: 'WAITING',
+      state: MatchStatus.WAITING,
       problemId,
       problemSlug,
       participants: [],

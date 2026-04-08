@@ -86,7 +86,7 @@ export default function ProblemPage() {
     setTestResults([]);
     setVerdict(null);
     try {
-      const result = await submissionsApi.run(slug, { language, code, input: '' }) as RunResult & {
+      const result = await submissionsApi.run({ language, code, input: '' }) as RunResult & {
         testResults?: typeof testResults;
       };
       setRunResult(result);
@@ -157,7 +157,7 @@ export default function ProblemPage() {
       setIsRunning(true);
       setRunResult(null);
       try {
-        const result = await submissionsApi.run(slug, { language, code, input }) as RunResult;
+        const result = await submissionsApi.run({ language, code, input }) as RunResult;
         setRunResult(result);
       } catch (err) {
         const error = err as Error;

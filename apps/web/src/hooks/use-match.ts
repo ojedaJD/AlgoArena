@@ -35,8 +35,8 @@ export function useMatch({ matchId, currentUserId, onMatchEnded }: UseMatchOptio
     setIsLoading(true);
     matchApi
       .getMatch(matchId)
-      .then((data) => setMatchData(data as MatchWithParticipants))
-      .catch((err: any) => setError(err.message ?? 'Failed to load match'))
+      .then((data: unknown) => setMatchData(data as MatchWithParticipants))
+      .catch((err: Error) => setError(err.message ?? 'Failed to load match'))
       .finally(() => setIsLoading(false));
   }, [matchId]);
 

@@ -3,13 +3,14 @@ import { logger } from '../lib/logger.js';
 import { prisma } from '../config/prisma.js';
 import { MatchStateMachine } from '../modules/matches/match-state-machine.js';
 import { matchService } from '../modules/matches/matches.service.js';
+import { enqueueSubmission } from '../judge/queue.js';
 import { joinRoom, leaveRoom } from './rooms.js';
 
 /**
  * Register all Socket.io event handlers on a connected socket.
  * Called once per connection after authentication succeeds.
  */
-export function registerHandlers(io: Server, socket: Socket): void {
+export function registerHandlers(_io: Server, socket: Socket): void {
   const userId: string = socket.data.user.id;
 
   // ── match:join ──────────────────────────────────────────────────────
@@ -115,15 +116,20 @@ export function registerHandlers(io: Server, socket: Socket): void {
         // Record the submission in the state machine
         await machine.playerSubmitted(userId, submission.id);
 
-        // Publish submission for the judge worker to pick up
-        const { redis } = await import('../config/redis.js');
-        await redis.lpush(
-          'judge:queue',
-          JSON.stringify({
-            submissionId: submission.id,
-            matchId,
-            userId,
-          }),
+        // Fetch problem limits for the judge
+        const problem = await prisma.problem.findUnique({
+          where: { id: match.problemId },
+          select: { timeLimitMs: true, memoryLimitMb: true },
+        });
+
+        // Enqueue submission via Redis Streams (matches judge worker consumer)
+        await enqueueSubmission(
+          submission.id,
+          code,
+          language,
+          match.problemId,
+          problem?.timeLimitMs ?? 2000,
+          problem?.memoryLimitMb ?? 256,
         );
 
         socket.emit('match:state', machine.toRoomState());

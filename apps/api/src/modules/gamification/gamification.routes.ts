@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { requireAuth } from '../../plugins/auth.js';
 import { gamificationService } from './gamification.service.js';
 import { prisma } from '../../config/prisma.js';
+
+const xpHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
 
 export async function gamificationRoutes(fastify: FastifyInstance) {
   /**
@@ -18,6 +23,36 @@ export async function gamificationRoutes(fastify: FastifyInstance) {
       await gamificationService.checkAchievements(request.user.id);
 
       return gamificationService.getProgress(request.user.id);
+    },
+  );
+
+  /**
+   * GET /v1/users/me/xp-history
+   * Get the authenticated user's XP ledger entries, newest first.
+   */
+  fastify.get(
+    '/users/me/xp-history',
+    { preHandler: [requireAuth] },
+    async (request) => {
+      const { limit } = xpHistoryQuerySchema.parse(request.query);
+      const entries = await prisma.xpLedger.findMany({
+        where: { userId: request.user.id },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: {
+          id: true,
+          delta: true,
+          reason: true,
+          refType: true,
+          refId: true,
+          createdAt: true,
+        },
+      });
+
+      return entries.map((e) => ({
+        ...e,
+        createdAt: e.createdAt.toISOString(),
+      }));
     },
   );
 

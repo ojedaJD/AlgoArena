@@ -10,17 +10,17 @@ import {
 import { ValidationError } from '../../lib/errors.js';
 
 export async function curriculumRoutes(app: FastifyInstance) {
-  // ─── GET /v1/topics ───────────────────────────────────────────────────────
+  // ─── GET /topics ───────────────────────────────────────────────────────
   // Public. Returns all root topics with nested children and counts.
-  app.get('/v1/topics', { preHandler: [] }, async (_request, reply) => {
+  app.get('/topics', { preHandler: [] }, async (_request, reply) => {
     const topics = await CurriculumService.listTopics();
     return reply.code(200).send(topics);
   });
 
-  // ─── GET /v1/topics/:slug ─────────────────────────────────────────────────
+  // ─── GET /topics/:slug ─────────────────────────────────────────────────
   // Public. Topic detail with lesson list and linked published problems.
   app.get<{ Params: { slug: string } }>(
-    '/v1/topics/:slug',
+    '/topics/:slug',
     { preHandler: [] },
     async (request, reply) => {
       const topic = await CurriculumService.getTopicBySlug(request.params.slug);
@@ -28,9 +28,9 @@ export async function curriculumRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── POST /v1/topics ──────────────────────────────────────────────────────
+  // ─── POST /topics ──────────────────────────────────────────────────────
   // Admin only. Create a new topic.
-  app.post('/v1/topics', { preHandler: [requireAuth, requireAdmin] }, async (request, reply) => {
+  app.post('/topics', { preHandler: [requireAuth, requireAdmin] }, async (request, reply) => {
     const parseResult = createTopicSchema.safeParse(request.body);
     if (!parseResult.success) {
       throw new ValidationError(parseResult.error.errors[0]?.message ?? 'Invalid request body');
@@ -40,10 +40,10 @@ export async function curriculumRoutes(app: FastifyInstance) {
     return reply.code(201).send(topic);
   });
 
-  // ─── PATCH /v1/topics/:id ─────────────────────────────────────────────────
+  // ─── PATCH /topics/:id ─────────────────────────────────────────────────
   // Admin only. Update a topic's fields.
   app.patch<{ Params: { id: string } }>(
-    '/v1/topics/:id',
+    '/topics/:id',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const parseResult = updateTopicSchema.safeParse(request.body);
@@ -56,10 +56,10 @@ export async function curriculumRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── DELETE /v1/topics/:id ────────────────────────────────────────────────
+  // ─── DELETE /topics/:id ────────────────────────────────────────────────
   // Admin only. Delete a topic (cascades to lessons and problem links).
   app.delete<{ Params: { id: string } }>(
-    '/v1/topics/:id',
+    '/topics/:id',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       await CurriculumService.deleteTopic(request.params.id);
@@ -67,10 +67,10 @@ export async function curriculumRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── GET /v1/lessons/:id ──────────────────────────────────────────────────
+  // ─── GET /lessons/:id ──────────────────────────────────────────────────
   // Public. Full lesson content (includes contentMd).
   app.get<{ Params: { id: string } }>(
-    '/v1/lessons/:id',
+    '/lessons/:id',
     { preHandler: [] },
     async (request, reply) => {
       const lesson = await CurriculumService.getLessonById(request.params.id);
@@ -78,10 +78,10 @@ export async function curriculumRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── POST /v1/topics/:topicId/lessons ────────────────────────────────────
+  // ─── POST /topics/:topicId/lessons ────────────────────────────────────
   // Admin only. Add a lesson to a topic.
   app.post<{ Params: { topicId: string } }>(
-    '/v1/topics/:topicId/lessons',
+    '/topics/:topicId/lessons',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const parseResult = createLessonSchema.safeParse(request.body);
@@ -97,10 +97,10 @@ export async function curriculumRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── PATCH /v1/lessons/:id ────────────────────────────────────────────────
+  // ─── PATCH /lessons/:id ────────────────────────────────────────────────
   // Admin only. Update a lesson.
   app.patch<{ Params: { id: string } }>(
-    '/v1/lessons/:id',
+    '/lessons/:id',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       const parseResult = updateLessonSchema.safeParse(request.body);
@@ -113,10 +113,10 @@ export async function curriculumRoutes(app: FastifyInstance) {
     },
   );
 
-  // ─── DELETE /v1/lessons/:id ───────────────────────────────────────────────
+  // ─── DELETE /lessons/:id ───────────────────────────────────────────────
   // Admin only. Delete a lesson.
   app.delete<{ Params: { id: string } }>(
-    '/v1/lessons/:id',
+    '/lessons/:id',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
       await CurriculumService.deleteLesson(request.params.id);

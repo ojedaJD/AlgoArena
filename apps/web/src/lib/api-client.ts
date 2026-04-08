@@ -58,9 +58,9 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 }
 
 export const problemsApi = {
-  list(params: { page?: number; limit?: number; difficulty?: string; topic?: string; tag?: string; search?: string; cursor?: string } = {}) {
+  list(params: { page?: number; limit?: number; difficulty?: string; topic?: string; tag?: string; search?: string } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number; hasMore: boolean; nextCursor: string | null }>(`/v1/problems${query}`);
+    return api.get<{ items: unknown[]; total: number }>(`/v1/problems${query}`);
   },
   getBySlug(slug: string) {
     return api.get<unknown>(`/v1/problems/${slug}`);
@@ -86,34 +86,24 @@ export const matchApi = {
   },
   getHistory(params: { page?: number; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number }>(`/v1/matches/history${query}`);
+    return api.get<{ data: unknown[]; pagination: unknown }>(`/v1/users/me/matches${query}`);
   },
   challenge(friendUserId: string) {
-    return api.post<unknown>('/v1/matches/challenge', { friendUserId });
+    return api.post<unknown>('/v1/matches/challenges', { friendUserId });
   },
   acceptChallenge(matchId: string) {
-    return api.post<unknown>(`/v1/matches/challenge/${matchId}/accept`);
+    return api.post<unknown>(`/v1/matches/${matchId}/accept`);
   },
 };
-
-export interface LeaderboardEntry {
-  rank: number;
-  userId: string;
-  displayName: string;
-  avatarUrl: string | null;
-  rating: number;
-  matchesPlayed: number;
-  wins: number;
-}
 
 export const leaderboardApi = {
   global(params: { type?: string; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ entries: LeaderboardEntry[] }>(`/v1/leaderboard${query}`);
+    return api.get<{ entries: unknown[] }>(`/v1/leaderboards/global${query}`);
   },
   friends(params: { type?: string; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ entries: LeaderboardEntry[] }>(`/v1/leaderboard/friends${query}`);
+    return api.get<{ entries: unknown[] }>(`/v1/leaderboards/friends${query}`);
   },
 };
 
@@ -161,34 +151,102 @@ export const socialApi = {
 
 export const submissionsApi = {
   submit(body: { problemSlug: string; code: string; language: string; matchId?: string }) {
-    return api.post<unknown>(`/v1/problems/${body.problemSlug}/submissions`, body);
+    return api.post<unknown>(`/v1/problems/${body.problemSlug}/submissions`, { code: body.code, language: body.language });
   },
-  run(slug: string, body: { code: string; language: string; input: string }) {
-    return api.post<unknown>(`/v1/problems/${slug}/run`, body);
+  run(body: { code: string; language: string; input: string; problemSlug?: string }) {
+    const slug = body.problemSlug || 'sandbox';
+    return api.post<unknown>(`/v1/problems/${slug}/run`, { code: body.code, language: body.language, input: body.input });
   },
   getById(id: string) {
     return api.get<unknown>(`/v1/submissions/${id}`);
   },
   list(params: { page?: number; limit?: number } = {}) {
     const query = buildQuery(params);
-    return api.get<{ items: unknown[]; total: number }>(`/v1/submissions${query}`);
+    return api.get<{ data: unknown[]; nextCursor: string | null; hasMore: boolean }>(`/v1/users/me/submissions${query}`);
   },
 };
 
 export const gamificationApi = {
   getProgress() {
-    return api.get<unknown>('/v1/gamification/progress');
+    return api.get<unknown>('/v1/users/me/progress');
   },
   getAchievements() {
-    return api.get<unknown[]>('/v1/gamification/achievements');
+    return api.get<unknown[]>('/v1/achievements');
   },
 };
 
 export const ratingsApi = {
   getMine() {
-    return api.get<unknown>('/v1/ratings/me');
+    return api.get<unknown>('/v1/users/me/rating');
   },
   getHistory() {
-    return api.get<unknown[]>('/v1/ratings/history');
+    return api.get<unknown[]>('/v1/users/me/rating/history');
+  },
+};
+
+// ── Curriculum Track API helpers ──────────────────────────────────────────
+
+export interface CurriculumTrack {
+  slug: string;
+  title: string;
+  description: string;
+  orderIndex: number;
+}
+
+export interface CurriculumSection {
+  id: string;
+  title: string;
+  orderIndex: number;
+  items: CurriculumItem[];
+}
+
+export interface CurriculumItem {
+  id: string;
+  kind: 'LESSON' | 'TOPIC' | 'PROBLEM';
+  orderIndex: number;
+  lessonId: string | null;
+  topicId: string | null;
+  problemSlug: string | null;
+  lesson: { id: string; title: string } | null;
+  topic: { id: string; slug: string; title: string } | null;
+}
+
+export interface CurriculumTrackDetail extends CurriculumTrack {
+  sections: CurriculumSection[];
+}
+
+export interface LessonProgressEntry {
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface CurriculumProgress {
+  lessons: Record<string, LessonProgressEntry>;
+}
+
+export interface LessonDetail {
+  id: string;
+  title: string;
+  contentMd: string;
+  topicId: string;
+  orderIndex: number;
+}
+
+export const curriculumApi = {
+  getTracks() {
+    return api.get<CurriculumTrack[]>('/v1/curriculum/tracks');
+  },
+  getTrack(slug: string) {
+    return api.get<CurriculumTrackDetail>(`/v1/curriculum/tracks/${slug}`);
+  },
+  getProgress() {
+    return api.get<CurriculumProgress>('/v1/users/me/curriculum/progress');
+  },
+  updateLessonProgress(lessonId: string, status: string) {
+    return api.post<LessonProgressEntry>(`/v1/lessons/${lessonId}/progress`, { status });
+  },
+  getLesson(id: string) {
+    return api.get<LessonDetail>(`/v1/lessons/${id}`);
   },
 };

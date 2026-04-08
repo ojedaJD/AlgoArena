@@ -1,8 +1,8 @@
-import { SubmissionStatus } from '@prisma/client';
+import { SubmissionStatus, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { prisma } from '../../config/prisma.js';
 import { redis } from '../../config/redis.js';
-import { NotFoundError, ForbiddenError } from '../../lib/errors.js';
+import { NotFoundError } from '../../lib/errors.js';
 import { paginate } from '../../lib/pagination.js';
 import type {
   SubmissionFilters,
@@ -103,7 +103,7 @@ export class SubmissionService {
   static async listByUser(userId: string, filters: SubmissionFilters) {
     const { prismaArgs, wrap } = paginate({ cursor: filters.cursor, limit: filters.limit });
 
-    const where: Parameters<typeof prisma.submission.findMany>[0]['where'] = { userId };
+    const where: Prisma.SubmissionWhereInput = { userId };
 
     if (filters.status) {
       where.status = filters.status as SubmissionStatus;

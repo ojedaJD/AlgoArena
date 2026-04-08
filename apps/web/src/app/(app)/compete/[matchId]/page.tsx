@@ -7,15 +7,16 @@ import { useMatch } from '@/hooks/use-match';
 import { MatchRoom } from '@/components/match/match-room';
 import { MatchResult } from '@/components/match/match-result';
 import { problemsApi } from '@/lib/api-client';
-import { useCurrentUserId } from '@/hooks/use-current-user-id';
 import type { Problem } from '@dsa/shared';
+
+// TODO: Get currentUserId from auth context/session
+const CURRENT_USER_ID = 'me';
 
 export default function MatchPage() {
   const params = useParams();
   const router = useRouter();
   const matchId = params.matchId as string;
 
-  const currentUserId = useCurrentUserId();
   const [problem, setProblem] = useState<Problem | null>(null);
   const [problemError, setProblemError] = useState<string | null>(null);
   const [matchEndData, setMatchEndData] = useState<{
@@ -26,7 +27,7 @@ export default function MatchPage() {
 
   const { matchState, matchData, isLoading, error, submitCode } = useMatch({
     matchId,
-    currentUserId,
+    currentUserId: CURRENT_USER_ID,
     onMatchEnded: (data) => setMatchEndData(data),
   });
 
@@ -36,8 +37,8 @@ export default function MatchPage() {
     setProblemError(null);
     problemsApi
       .getBySlug(matchState.problemSlug)
-      .then((p) => setProblem(p as Problem))
-      .catch((err: any) => setProblemError(err.message));
+      .then((p: unknown) => setProblem(p as Problem))
+      .catch((err: Error) => setProblemError(err.message));
   }, [matchState?.problemSlug]);
 
   if (isLoading || (!matchState && !error)) {
@@ -69,7 +70,7 @@ export default function MatchPage() {
     const participants = matchData.participants.map((p) => ({
       userId: p.userId,
       displayName: `Player ${p.userId.slice(0, 4)}`,
-      isCurrentUser: p.userId === currentUserId,
+      isCurrentUser: p.userId === CURRENT_USER_ID,
       verdict:
         matchData.winnerId === p.userId ? 'ACCEPTED' : p.submissionId ? 'WRONG_ANSWER' : null,
       runtimeMs: null,
@@ -82,7 +83,7 @@ export default function MatchPage() {
     return (
       <MatchResult
         winnerId={matchEndData.winnerId}
-        currentUserId={currentUserId}
+        currentUserId={CURRENT_USER_ID}
         participants={participants}
         onPlayAgain={() => router.push('/compete')}
       />
@@ -102,7 +103,7 @@ export default function MatchPage() {
     <MatchRoom
       matchState={matchState}
       problem={problem}
-      currentUserId={currentUserId}
+      currentUserId={CURRENT_USER_ID}
       onSubmit={submitCode}
     />
   );

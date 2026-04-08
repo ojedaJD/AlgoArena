@@ -1,0 +1,12 @@
+{
+  "slug": "systems-design",
+  "title": "Systems Design",
+  "description": "Interview-focused systems design curriculum: foundations, building blocks, and case studies.",
+  "orderIndex": 0,
+  "isPublished": true,
+  "sections": [
+    { "slug": "foundations", "title": "Foundations", "orderIndex": 0 },
+    { "slug": "building-blocks", "title": "Building Blocks", "orderIndex": 1 },
+    { "slug": "case-studies", "title": "Case Studies", "orderIndex": 2 }
+  ]
+}

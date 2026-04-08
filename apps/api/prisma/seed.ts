@@ -1,4 +1,4 @@
-import { PrismaClient, Difficulty, UserRole } from '@prisma/client';
+import { PrismaClient, Difficulty, UserRole, CurriculumItemKind } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -257,6 +257,170 @@ async function main() {
   });
 
   console.log(`Upserted admin user: ${admin.email} (id: ${admin.id})`);
+
+  // ─── Systems Design Curriculum Track ────────────────────────────────────
+
+  // Ensure a "Systems Design" topic exists for linking lessons
+  const sdTopic = await prisma.topic.upsert({
+    where: { slug: 'systems-design' },
+    update: {},
+    create: { slug: 'systems-design', title: 'Systems Design', orderIndex: 100 },
+  });
+
+  console.log(`Upserted topic: ${sdTopic.title} (id: ${sdTopic.id})`);
+
+  // Upsert the curriculum track
+  const sdTrack = await prisma.curriculumTrack.upsert({
+    where: { slug: 'systems-design' },
+    update: {
+      title: 'Systems Design',
+      description: 'Interview-focused systems design curriculum: foundations, building blocks, and case studies.',
+      orderIndex: 0,
+      isPublished: true,
+    },
+    create: {
+      slug: 'systems-design',
+      title: 'Systems Design',
+      description: 'Interview-focused systems design curriculum: foundations, building blocks, and case studies.',
+      orderIndex: 0,
+      isPublished: true,
+    },
+  });
+
+  console.log(`Upserted curriculum track: ${sdTrack.title} (id: ${sdTrack.id})`);
+
+  // Upsert the 3 sections
+  const sectionsData = [
+    { slug: 'foundations', title: 'Foundations', orderIndex: 0 },
+    { slug: 'building-blocks', title: 'Building Blocks', orderIndex: 1 },
+    { slug: 'case-studies', title: 'Case Studies', orderIndex: 2 },
+  ];
+
+  const sdSections: Record<string, string> = {};
+
+  for (const sec of sectionsData) {
+    const section = await prisma.curriculumSection.upsert({
+      where: { trackId_slug: { trackId: sdTrack.id, slug: sec.slug } },
+      update: { title: sec.title, orderIndex: sec.orderIndex },
+      create: {
+        trackId: sdTrack.id,
+        slug: sec.slug,
+        title: sec.title,
+        orderIndex: sec.orderIndex,
+      },
+    });
+    sdSections[sec.slug] = section.id;
+  }
+
+  console.log(`Upserted ${Object.keys(sdSections).length} curriculum sections.`);
+
+  // Lesson content template
+  const lessonTemplate = `## Goal
+
+- [Lesson goal placeholder]
+
+## Core concepts
+
+- [Concept 1]
+- [Concept 2]
+- [Concept 3]
+
+## Trade-offs
+
+- Latency: [placeholder]
+- Cost: [placeholder]
+- Consistency: [placeholder]
+- Complexity: [placeholder]
+
+## Failure modes
+
+- [Failure mode placeholder]
+
+## Interview prompts
+
+1. [Prompt placeholder]
+
+## Mini design drill (10-15 min)
+
+- [Drill placeholder]
+
+## Checkpoint quiz
+
+1. [Quiz question placeholder]`;
+
+  // Lessons grouped by section slug
+  const sdLessonsData: { sectionSlug: string; title: string; orderIndex: number }[] = [
+    // Foundations
+    { sectionSlug: 'foundations', title: 'Requirements and Scope', orderIndex: 0 },
+    { sectionSlug: 'foundations', title: 'Back-of-the-Envelope Estimation', orderIndex: 1 },
+    { sectionSlug: 'foundations', title: 'API Design and Data Modeling', orderIndex: 2 },
+    { sectionSlug: 'foundations', title: 'SLOs and Error Budgets', orderIndex: 3 },
+    { sectionSlug: 'foundations', title: 'Observability Basics', orderIndex: 4 },
+    { sectionSlug: 'foundations', title: 'Retries, Timeouts, and Idempotency', orderIndex: 5 },
+    // Building Blocks
+    { sectionSlug: 'building-blocks', title: 'Load Balancing', orderIndex: 0 },
+    { sectionSlug: 'building-blocks', title: 'Caching and Invalidation', orderIndex: 1 },
+    { sectionSlug: 'building-blocks', title: 'Queues and Async Processing', orderIndex: 2 },
+    { sectionSlug: 'building-blocks', title: 'SQL vs NoSQL Trade-offs', orderIndex: 3 },
+    { sectionSlug: 'building-blocks', title: 'Partitioning and Replication', orderIndex: 4 },
+    { sectionSlug: 'building-blocks', title: 'Rate Limiting', orderIndex: 5 },
+    // Case Studies
+    { sectionSlug: 'case-studies', title: 'URL Shortener', orderIndex: 0 },
+    { sectionSlug: 'case-studies', title: 'Chat System', orderIndex: 1 },
+    { sectionSlug: 'case-studies', title: 'Notification System', orderIndex: 2 },
+  ];
+
+  // Clean up stale curriculum items for these sections (lesson deleteMany earlier
+  // sets lessonId to null via onDelete: SetNull, so purge orphaned items)
+  for (const sectionId of Object.values(sdSections)) {
+    await prisma.curriculumItem.deleteMany({
+      where: { sectionId, kind: CurriculumItemKind.LESSON, lessonId: null },
+    });
+  }
+
+  let sdLessonCount = 0;
+  let sdItemCount = 0;
+
+  for (const lessonDef of sdLessonsData) {
+    const sectionId = sdSections[lessonDef.sectionSlug];
+
+    // Check if a lesson with this title already exists under the SD topic
+    let lesson = await prisma.lesson.findFirst({
+      where: { title: lessonDef.title, topicId: sdTopic.id },
+    });
+
+    if (!lesson) {
+      lesson = await prisma.lesson.create({
+        data: {
+          topicId: sdTopic.id,
+          title: lessonDef.title,
+          contentMd: lessonTemplate,
+          orderIndex: lessonDef.orderIndex,
+        },
+      });
+    }
+
+    sdLessonCount++;
+
+    // Check if a curriculum item already links this lesson to the section
+    const existingItem = await prisma.curriculumItem.findFirst({
+      where: { sectionId, lessonId: lesson.id, kind: CurriculumItemKind.LESSON },
+    });
+
+    if (!existingItem) {
+      await prisma.curriculumItem.create({
+        data: {
+          sectionId,
+          orderIndex: lessonDef.orderIndex,
+          kind: CurriculumItemKind.LESSON,
+          lessonId: lesson.id,
+        },
+      });
+      sdItemCount++;
+    }
+  }
+
+  console.log(`Seeded ${sdLessonCount} Systems Design lessons, ${sdItemCount} new curriculum items.`);
 
   console.log('Seeding complete.');
 }

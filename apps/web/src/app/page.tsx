@@ -430,6 +430,7 @@ function CodeLine({
   text3,
   op,
   op2,
+  children,
 }: {
   indent?: number;
   comment?: boolean;
@@ -442,6 +443,7 @@ function CodeLine({
   text3?: string;
   op?: string;
   op2?: string;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="flex">
@@ -451,7 +453,7 @@ function CodeLine({
       <span className="leading-6">
         {/* Indentation */}
         {'  '.repeat(indent)}
-        {comment && <span className="text-slate-600">{text ?? ''}</span>}
+        {comment && <span className="text-slate-600">{children ?? text ?? ''}</span>}
         {!comment && (
           <>
             {keyword && <span className="text-blue-400">{keyword} </span>}

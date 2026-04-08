@@ -82,7 +82,7 @@ export default function SubmissionsPage() {
     setIsLoading(true);
     problemsApi
       .getSubmissions(slug)
-      .then((data: any) => setSubmissions((data.items ?? data) as Submission[]))
+      .then((data) => setSubmissions((data.items ?? data) as Submission[]))
       .catch(() => setSubmissions([]))
       .finally(() => setIsLoading(false));
   }, [slug]);

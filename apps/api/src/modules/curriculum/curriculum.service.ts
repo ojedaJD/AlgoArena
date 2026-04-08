@@ -58,12 +58,12 @@ export class CurriculumService {
         problems: {
           include: {
             problem: {
-              where: { isPublished: true },
               select: {
                 id: true,
                 slug: true,
                 title: true,
                 difficulty: true,
+                isPublished: true,
               },
             },
           },
@@ -73,10 +73,10 @@ export class CurriculumService {
 
     if (!topic) throw new NotFoundError(`Topic '${slug}' not found`);
 
-    // Filter out junction rows where the problem is not published (null after where clause)
+    // Filter out junction rows where the problem is not published
     const problems = topic.problems
       .map((pt) => pt.problem)
-      .filter((p): p is NonNullable<typeof p> => p !== null);
+      .filter((p) => p.isPublished);
 
     return { ...topic, problems };
   }

@@ -82,6 +82,7 @@ model User {
   discussionThreads   DiscussionThread[]
   discussionPosts     DiscussionPost[]
   notifications       Notification[]
+  lessonProgress      UserLessonProgress[]
 
   @@map("users")
 }
@@ -106,22 +107,32 @@ model Topic {
   orderIndex    Int     @map("order_index")
   parentTopicId String? @map("parent_topic_id")
 
-  parent   Topic?  @relation("TopicHierarchy", fields: [parentTopicId], references: [id])
-  children Topic[] @relation("TopicHierarchy")
-  lessons  Lesson[]
-  problems ProblemTopic[]
+  parent          Topic?           @relation("TopicHierarchy", fields: [parentTopicId], references: [id])
+  children        Topic[]          @relation("TopicHierarchy")
+  lessons         Lesson[]
+  problems        ProblemTopic[]
+  curriculumItems CurriculumItem[]
 
   @@map("topics")
 }
 
 model Lesson {
-  id         String @id @default(uuid())
-  topicId    String @map("topic_id")
-  title      String
-  contentMd  String @map("content_md") @db.Text
-  orderIndex Int    @map("order_index")
+  id               String  @id @default(uuid())
+  slug             String? @unique
+  topicId          String  @map("topic_id")
+  title            String
+  contentMd        String  @map("content_md") @db.Text
+  orderIndex       Int     @map("order_index")
+  estimatedMinutes Int?    @map("estimated_minutes")
+  sourceTitle      String? @map("source_title")
+  sourceAuthor     String? @map("source_author")
+  sourceUrl        String? @map("source_url")
+  sourceLicense    String? @map("source_license")
+  attributionText  String? @map("attribution_text")
 
-  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topic          Topic              @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  curriculumItems CurriculumItem[]
+  userProgress    UserLessonProgress[]
 
   @@map("lessons")
 }
@@ -390,6 +401,86 @@ model DiscussionPost {
   replies DiscussionPost[] @relation("PostReplies")
 
   @@map("discussion_posts")
+}
+
+enum CurriculumItemKind {
+  LESSON
+  TOPIC
+  PROBLEM
+}
+
+enum LessonProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model CurriculumTrack {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  description String   @db.Text
+  orderIndex  Int      @map("order_index")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sections CurriculumSection[]
+
+  @@map("curriculum_tracks")
+}
+
+model CurriculumSection {
+  id          String  @id @default(uuid())
+  trackId     String  @map("track_id")
+  slug        String
+  title       String
+  description String? @db.Text
+  orderIndex  Int     @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  track CurriculumTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  items CurriculumItem[]
+
+  @@unique([trackId, slug])
+  @@map("curriculum_sections")
+}
+
+model CurriculumItem {
+  id          String             @id @default(uuid())
+  sectionId   String             @map("section_id")
+  orderIndex  Int                @map("order_index")
+  kind        CurriculumItemKind
+  lessonId    String?            @map("lesson_id")
+  topicId     String?            @map("topic_id")
+  problemSlug String?            @map("problem_slug")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  section CurriculumSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lesson  Lesson?           @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  topic   Topic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([sectionId, orderIndex])
+  @@map("curriculum_items")
+}
+
+model UserLessonProgress {
+  id          String               @id @default(uuid())
+  userId      String               @map("user_id")
+  lessonId    String               @map("lesson_id")
+  status      LessonProgressStatus @default(NOT_STARTED)
+  startedAt   DateTime?            @map("started_at")
+  completedAt DateTime?            @map("completed_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@map("user_lesson_progress")
 }
 
 model Notification {

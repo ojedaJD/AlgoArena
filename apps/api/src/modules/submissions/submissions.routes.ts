@@ -6,13 +6,13 @@ import {
   submissionFiltersSchema,
   runCodeSchema,
 } from './submissions.schema.js';
-import { ValidationError, UnauthorizedError } from '../../lib/errors.js';
+import { ValidationError } from '../../lib/errors.js';
 
 export async function submissionRoutes(app: FastifyInstance) {
   // ─── POST /v1/problems/:slug/submissions ─────────────────────────────────
   // Authenticated. Submit code against a problem's full test suite.
   app.post<{ Params: { slug: string } }>(
-    '/v1/problems/:slug/submissions',
+    '/problems/:slug/submissions',
     { preHandler: [requireAuth] },
     async (request, reply) => {
       const parseResult = createSubmissionSchema.safeParse(request.body);
@@ -35,7 +35,7 @@ export async function submissionRoutes(app: FastifyInstance) {
   // ─── POST /v1/problems/:slug/run ─────────────────────────────────────────
   // Authenticated. Run code against custom stdin — does not store a submission.
   app.post<{ Params: { slug: string } }>(
-    '/v1/problems/:slug/run',
+    '/problems/:slug/run',
     { preHandler: [requireAuth] },
     async (request, reply) => {
       const parseResult = runCodeSchema.safeParse(request.body);
@@ -53,7 +53,7 @@ export async function submissionRoutes(app: FastifyInstance) {
   // ─── GET /v1/submissions/:id ──────────────────────────────────────────────
   // Public. Returns verdict summary. Code is hidden from non-owners.
   app.get<{ Params: { id: string } }>(
-    '/v1/submissions/:id',
+    '/submissions/:id',
     { preHandler: [] },
     async (request, reply) => {
       const requestingUserId: string | undefined = (request as any).user?.id;
@@ -65,7 +65,7 @@ export async function submissionRoutes(app: FastifyInstance) {
   // ─── GET /v1/users/me/submissions ────────────────────────────────────────
   // Authenticated. Paginated submission history for the calling user.
   app.get(
-    '/v1/users/me/submissions',
+    '/users/me/submissions',
     { preHandler: [requireAuth] },
     async (request, reply) => {
       const parseResult = submissionFiltersSchema.safeParse(request.query);

@@ -42,7 +42,7 @@ export function MatchRoom({ matchState, problem, currentUserId, onSubmit }: Matc
     if (!problem) return;
     setIsRunning(true);
     try {
-      const result = await submissionsApi.run(problem.slug, { language, code, input: '' }) as RunResult;
+      const result = await submissionsApi.run({ language, code, input: '' }) as RunResult;
       setRunResult(result);
     } catch {
       // ignore

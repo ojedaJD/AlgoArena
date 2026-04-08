@@ -13,13 +13,14 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "content:lint": "tsx src/scripts/lint-curriculum.ts",
+    "curriculum:import": "tsx src/scripts/import-curriculum.ts",
     "db:import-leetcode": "tsx prisma/import-leetcode.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "turndown": "^7.2.0",
     "@dsa/shared": "file:../../packages/shared",
     "@fastify/cors": "^9.0.0",
     "@fastify/rate-limit": "^9.0.0",
@@ -36,14 +37,15 @@
     "socket.io": "^4.7.0",
     "tar-stream": "^3.1.0",
     "uuid": "^9.0.0",
+    "turndown": "^7.2.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/turndown": "^5.0.0",
     "@types/dockerode": "^3.3.0",
     "@types/node": "^20.12.0",
     "@types/tar-stream": "^3.0.0",
     "@types/uuid": "^9.0.0",
+    "@types/turndown": "^5.0.0",
     "prisma": "^5.14.0",
     "tsx": "^4.11.0",
     "typescript": "^5.4.0",

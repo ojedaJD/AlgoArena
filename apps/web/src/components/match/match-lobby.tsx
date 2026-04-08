@@ -24,7 +24,7 @@ export function MatchLobby({ onMatchFound }: MatchLobbyProps) {
   const handleJoinRanked = async () => {
     setIsJoining(true);
     try {
-      await matchApi.joinQueue('RANKED');
+      await matchApi.joinQueue();
       setQueueStatus({ inQueue: true, position: 1 });
     } catch (err) {
       console.error('Failed to join queue', err);

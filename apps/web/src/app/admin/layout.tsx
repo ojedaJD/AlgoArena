@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import { Shield, BookOpen, GraduationCap, BarChart2, Loader2, LayoutDashboard } from 'lucide-react';
+import { Shield, BookOpen, GraduationCap, BarChart2, Loader2, LayoutDashboard, Map } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AdminLayoutProps {
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/admin/problems', label: 'Problems', icon: BookOpen },
   { href: '/admin/topics', label: 'Topics', icon: GraduationCap },
+  { href: '/admin/curriculum', label: 'Curriculum', icon: Map },
   { href: '/admin/stats', label: 'Stats', icon: BarChart2 },
 ];
 
